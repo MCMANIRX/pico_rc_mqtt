@@ -1,0 +1,22 @@
+{
+    "files.associations": {
+        "screen.h": "c",
+        "waveshare_frame.h": "c",
+        "string.h": "c",
+        "gui_paint.h": "c",
+        "to565.h": "c",
+        "t_image.h": "c",
+        "barometer.h": "c",
+        "lcd_2in.h": "c",
+        "stdio.h": "c",
+        "mqttproperties.h": "c",
+        "mqttexportdeclarations.h": "c",
+        "mqttclient.h": "c",
+        "websocket.h": "c",
+        "rc_config.h": "c",
+        "mqtt.h": "c"
+    },
+    "[m68k]": {
+        "editor.rulers": []
+    }
+}
