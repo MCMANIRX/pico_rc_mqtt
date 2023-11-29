@@ -2,7 +2,7 @@ import paho.mqtt.client as mqtt
 import time
 
 
-broker = 'localhost'
+broker = '192.168.1.1'
 port = 1883
 topic = "/rc/com" # car->ctrl channel
 
