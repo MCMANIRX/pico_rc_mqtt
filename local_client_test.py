@@ -2,12 +2,15 @@ import paho.mqtt.client as mqtt
 import time
 
 
-broker = '192.168.1.1'
+broker = 'localhost'
 port = 1883
 topic = "/rc/com" # car->ctrl channel
 
 global client_id
 global assign_data
+
+assign_topic = "/rc_ctrl/assign"
+
 
 assigned = False
 
@@ -68,7 +71,6 @@ client.on_connect = on_connect
 client.on_message = on_message
 connect()
 
-client.loop_start()
 
 while(True):
 
@@ -79,10 +81,13 @@ while(True):
 
     if((assign_data >> 7) & 1 and not assigned):
         
-        #client.unsubscribe("/rc_ctrl/+")
-        #client.disconnect
-        #client.loop_stop()
-        client = mqtt.Client(str(assign_data&7)) 
+        client.unsubscribe(assign_topic)
+        client.loop_stop()
+        client.disconnect()
+        
+        client = mqtt.Client(str(assign_data&7))
+        client.on_connect = on_connect
+        client.on_message = on_message
         assigned = True
         connect()
         
