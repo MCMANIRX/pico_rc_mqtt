@@ -5,15 +5,23 @@ from machine import Pin,PWM
 
 led = machine.Pin("LED",machine.Pin.OUT)
 
-drive_lr = Pin(14,Pin.OUT)
-steer_lr = Pin(15,Pin.OUT)
-drive = PWM(Pin(12,Pin.OUT))
-steer = PWM(Pin(13,Pin.OUT))
+#drive_lr = Pin(14,Pin.OUT)
+#steer_lr = Pin(15,Pin.OUT)
+#drive = PWM(Pin(12,Pin.OUT))
+#steer = PWM(Pin(13,Pin.OUT))
+drivea = PWM(Pin(14,Pin.OUT))
+driveb = PWM(Pin(15,Pin.OUT))
+steera = Pin(12,Pin.OUT)
+steerb = Pin(13,Pin.OUT)
 
-drive.freq(1000)
-steer.freq(1000)
+drivea.freq(1000)
+driveb.freq(1000)
 
-spd_mult = 256 # 8->16 bit for pwm.duty_u16(), then x 2 since input was originally 8-bit signed
+
+#drive.freq(1000)
+#steer.freq(1000)
+
+spd_mult = 512 # 8->16 bit for pwm.duty_u16(), then x 2 since input was originally 8-bit signed
 
 
 global client_id
@@ -47,15 +55,40 @@ def move_motors(x,y):
     x = from_8_signed(x)*spd_mult
     y = from_8_signed(y)*spd_mult
     
-    _move_motors(y,drive_lr,drive)
-    _move_motors(x,steer_lr,steer)
+    
+    if(y<0):
+        drivea.duty_u16(abs(y))
+    elif(y!=0):
+        driveb.duty_u16(abs(y))
+    else:
+        drivea.deinit()
+        driveb.deinit()
+    
+    if(x<0):
+        steera.value(1)
+    elif(x!=0):
+        steerb.value(1)
+    else:
+        steera.value(0)
+        steerb.value(0)
         
+    
+ #   _move_motors(y,drive_lr,drive)
+ #   _move_motors(x,steer_lr,steer)
+        
+    
 
 
-# wifi setup
+    
+    
 
-ssid = ''
-password = ''
+
+
+ssid = 'XboxOne'
+password = 'ctgprshouldbearomhack'
+
+#ssid = 'Inn at Greensboro AC'
+#password = '1000greensboro'
 
 
 wlan = network.WLAN(network.STA_IF)
@@ -89,13 +122,13 @@ def reconnect():
 def on_message(topic,msg):
     global client_id
     global assign_data
-   # print(topic+" "+str(msg))
+    #print(topic+" "+str(msg))
     
     if("assign" in str(topic)):
         assign_data = ( 1 << 7 ) | int(msg)
         
     elif("action" in str(topic)):
-        if(msg[0] == assign_data^0x80):
+        if(msg[0] == assign_data^0x80 or assign_data^0x80 == 0xff):
             if(msg[1] == 0x80):
                 move_motors(msg[2],msg[3])
 

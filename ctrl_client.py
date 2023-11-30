@@ -13,6 +13,8 @@ global vehicle_count #for id assignment
 vehicle_count = 0
 
 ############# PYGAME INIT ##############
+global dead_zone
+dead_zone = 0.0
 pygame.init()
 pygame.joystick.init()
 
@@ -35,11 +37,10 @@ def to_8_signed(x):
         return ((abs(x)&0xff))&0xff
     
     
-def arduino_map(value, from_low, from_high, to_low, to_high, dead_zone):
+def arduino_map(value, from_low, from_high, to_low, to_high,dead_zone):
     
     if(abs(value)<=abs(dead_zone)):
-        return 0
-
+        return 0 
     # Map the value from one range to another
     return int((value - from_low) * (to_high - to_low) / (from_high - from_low) + to_low)
 
@@ -53,10 +54,13 @@ def sendctrl(client,controller,src):
         y = arduino_map(controller.get_axis(1),-1,1,-127,127,0.1)
         
         
-        ctrl = (to_8_signed(vehicle_count<<8)|(mode)) & 0xffff
+       # ctrl = (to_8_signed(vehicle_count<<8)|(mode)) & 0xffff
+        ctrl = ((0xff<<8)|(mode)) & 0xffff
+
         xy = (((to_8_signed(x)<<8)) | (to_8_signed(y))) &0xffff
         
         payload =  (((ctrl << 16) | (xy)) & 0xffffff).to_bytes(4,"big")
+        
             
         client.publish("/rc_ctrl/action",payload)
 
@@ -83,6 +87,7 @@ def on_message(client, userdata, msg):
     if("unassigned" in str(msg.payload)):
         print("this one is unassigned! Assigning as \"",vehicle_count,"\"")
 
+        
         client.publish(assign_topic,vehicle_count)
         vehicle_count+=1
 
@@ -106,7 +111,10 @@ try:
     while(True):
         for event in pygame.event.get():
             if event.type == pygame.JOYAXISMOTION:
-                sendctrl(client,controller,"joy") # send all analog stick fluctuations to cars
+                    #if(abs(controller.get_axis(0)) > dead_zone or abs(controller.get_axis(1)) > dead_zone):
+
+                
+                        sendctrl(client,controller,"joy") # send all analog stick fluctuations to cars
 
 finally:
     client.disconnect()
