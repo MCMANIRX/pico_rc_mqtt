@@ -1,0 +1,26 @@
+# another test script, variation of script0
+
+sync{
+	car(0) {
+		ymove(f,100,500)
+		wait(100)
+		ymove(f,50,1000)
+		wait(200)
+		ymove(b,100,2000)
+		wait(100)
+		echo("car 0 movement 0 complete")
+	}
+
+	car(1) {
+		ymove(f,100,2000)
+		wait(1000)
+		ymove(b,40,1000)
+		wait(200)
+		echo("car 1 movement 0 complete")
+	}
+}
+
+
+
+
+

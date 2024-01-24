@@ -1,3 +1,5 @@
+# original MicroPython RC car code. Unless there is any interest in revival this will likely be deprecated.
+
 import network
 import time
 from umqtt.simple import MQTTClient
@@ -55,18 +57,21 @@ def move_motors(x,y):
     x = from_8_signed(x)*spd_mult
     y = from_8_signed(y)*spd_mult
     
-    
+   
     if(y<0):
         drivea.duty_u16(abs(y))
-    elif(y!=0):
+    elif(y>0):
         driveb.duty_u16(abs(y))
     else:
-        drivea.deinit()
-        driveb.deinit()
+        drivea.duty_u16(0)
+        driveb.duty_u16(0)
+
+  #      drivea.deinit()
+  #      driveb.deinit()
     
     if(x<0):
         steera.value(1)
-    elif(x!=0):
+    elif(x>0):
         steerb.value(1)
     else:
         steera.value(0)
@@ -87,9 +92,6 @@ def move_motors(x,y):
 ssid = 'XboxOne'
 password = 'ctgprshouldbearomhack'
 
-#ssid = 'Inn at Greensboro AC'
-#password = '1000greensboro'
-
 
 wlan = network.WLAN(network.STA_IF)
 wlan.active(True)
@@ -103,6 +105,7 @@ blink(4,0.2)
 
 
 broker = '192.168.1.137' # static IP
+global assigned
 assigned = False
 
 topic = b'/rc/com'
@@ -122,19 +125,30 @@ def reconnect():
 def on_message(topic,msg):
     global client_id
     global assign_data
-    #print(topic+" "+str(msg))
+    global assigned
+   # print(topic+" "+str(msg))
     
-    if("assign" in str(topic)):
-        assign_data = ( 1 << 7 ) | int(msg)
+    if("enq" in str(topic)):
+        if(len(client_id)<=2):
+            client.publish(b'/rc/com', ((int(client_id) << 8) | 0x6).to_bytes(2,'big'))
+    
+    elif("assign" in str(topic)):
+        if(msg[0] == assign_data^0x80):
+            assign_data =  0x80 | int(msg[2])
+            assigned = False
+        elif not assigned:
+            assign_data =  0x80 | int(msg[2])
         
     elif("action" in str(topic)):
-        if(msg[0] == assign_data^0x80 or assign_data^0x80 == 0xff):
+        if(msg[0] == assign_data^0x80 or msg[0] == 0xff):
             if(msg[1] == 0x80):
                 move_motors(msg[2],msg[3])
+                
+
 
 
 client_id = 'rc_unassigned'
-assign_data = 1
+assign_data = 0
 try:
     client = mqtt_connect()
     client.set_callback(on_message)
@@ -146,14 +160,14 @@ client.subscribe("/rc_ctrl/+")
 while True:
     time.sleep(0.01)
     client.check_msg()
-    if((assign_data >> 7) & 1 and not assigned):        
-        client_id = (str(assign_data&7))
+    if((assign_data) and not assigned):        
+        client_id = (str(assign_data&0x7f))
         mqtt_connect()
         assigned = True
         
     if(not assigned):
-        time.sleep(1)
+        time.sleep(.5)
         client.publish(topic, "unassigned")
-        time.sleep(1)
+        time.sleep(.5)
         client.check_msg()
 

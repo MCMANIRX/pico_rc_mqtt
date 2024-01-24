@@ -11,15 +11,17 @@ project(rc C CXX ASM)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
 set(PICO_BOARD pico_w)
+
 # initialize the Raspberry Pi Pico SDK
 pico_sdk_init()
 
 # rest of your project
 add_executable(rc
-    src/main.c
-    src/mqtt.c
-  #  src/wifi_test.c
-   # src/transport.c
+  #src/rc_mqtt.c
+  src/main.C
+  #src/wifi_temp2.c
+  #src/motor_test.c
+ 
 
 
 
@@ -28,17 +30,25 @@ add_executable(rc
 target_include_directories(rc PRIVATE
         ${CMAKE_CURRENT_LIST_DIR}
         ${CMAKE_CURRENT_LIST_DIR}/.. # for our common lwipopts
+
+
+        
 )
 
-target_link_libraries(rc
-        pico_stdlib              # for core functionality
-        pico_cyw43_arch_lwip_threadsafe_background 
+target_sources(rc PRIVATE ${PICO_SDK_PATH}/lib/lwip/src/apps/mqtt/mqtt.c)
 
+
+target_link_libraries(rc
+        pico_stdlib              
+        pico_cyw43_arch_lwip_threadsafe_background 
+        pico_multicore
         hardware_spi
+        hardware_vreg # overclock
         hardware_i2c
         hardware_pwm
-        hardware_adc
         pico_lwip_mqtt
+        pico_lwip_arch
+
 )
 
 # enable usb output, disable uart output

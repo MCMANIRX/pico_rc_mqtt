@@ -14,7 +14,10 @@
         "mqttclient.h": "c",
         "websocket.h": "c",
         "rc_config.h": "c",
-        "mqtt.h": "c"
+        "mqtt.h": "c",
+        "stdbool.h": "c",
+        "rc_mqtt.h": "c",
+        "xutility": "c"
     },
     "[m68k]": {
         "editor.rulers": []
