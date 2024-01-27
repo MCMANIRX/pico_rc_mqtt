@@ -56,5 +56,8 @@
   "C_Cpp_Runner.showCompilationTime": false,
   "C_Cpp_Runner.useLinkTimeOptimization": false,
   "C_Cpp_Runner.msvcSecureNoWarnings": false,
-  "cmake.sourceDirectory": "C:/Users/mcser/Documents/scoo/NCAT 2023-24/Second/fadl/proj/python/pico_rc_mqtt/C"
+  "cmake.sourceDirectory": "C:/Users/mcser/Documents/scoo/NCAT 2023-24/Second/fadl/proj/python/pico_rc_mqtt/C",
+  "[m68k]": {
+    "editor.rulers": []
+  }
 }

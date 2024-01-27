@@ -93,6 +93,8 @@ min_y = 0
 # might be better than sleep for the drive ctrl delay
 gpd0 = NonBlockingDelay()
 
+param_delay = NonBlockingDelay()
+
 
 
 # script logic variables
@@ -563,6 +565,8 @@ def polling_loop():
     global script_thread
 
    # enq_pulse.delay_ms(1000)
+   
+    param_delay.delay_ms(33)
 
 
     while(True):
@@ -571,6 +575,11 @@ def polling_loop():
        # if enq_pulse.timeout():
        #     client.publish(rc.ENQUIRE_TOPIC,rc.ENQ,qos=2) # ENQ
         #    enq_pulse.delay_ms(1000)
+        
+        if(param_delay.timeout()):
+            client.publish(rc.ACTION_TOPIC,rc.compileCommand(0xff,rc.PARAMS_OP,0,2))
+            param_delay.delay_ms(33)
+
 
 
                 

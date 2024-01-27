@@ -15,6 +15,7 @@ MSG_OP          =  0x3
 YMOVE_OP        =  0x4
 PRINT_OP        =  0xe
 ASSIGN_OP       =  0x1a
+PARAMS_OP       =  0x1f
 
 # request codes
 RSSI_REQ        =  0x21

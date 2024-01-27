@@ -16,9 +16,10 @@
 #define YMOVE_OP         0x4
 #define PRINT_OP         0xe
 #define ASSIGN_OP        0x1a
+#define PARAMS_OP        0x1f
 
 // request codes
-#define RSSI_REQ          0x21
+#define RSSI_REQ         0x21
 
 
 // flags
@@ -39,9 +40,11 @@
 #define STEER_B         13
 
 
+// multicore-related constants
+
+#define IMU_PARAM_COUNT 3
+#define IMU_BUF_LEN     (IMU_PARAM_COUNT * 6)+2
 
 
 
-//static float tsm = 1;
-//static float dsm = 1;
 

@@ -3,9 +3,6 @@
 *
 *   1. P axis lock (use IMU to drive straight on an axis with PID loop)
 *   2. Add functionality (script) to set local x y or z axis
-*   3. Add data send functionality (script)
-*   4. Multicore for I2C interface polling
-*
 *
 */
 
@@ -16,6 +13,8 @@
 #include "hardware/pwm.h"
 #include "hardware/vreg.h"
 #include "rc_mqtt.h"
+#include "pico/multicore.h"
+
 
 u16_t drive_slice;
 u16_t steer_slice;
@@ -28,8 +27,12 @@ COMMAND cmd;
 bool assign;
 u8_t assign_data;
 char id[4];
-
 char ack[2];
+
+u8_t imu_buf[IMU_BUF_LEN];
+u8_t imu_buf_flag;
+
+
 
 
 s16_t arduino_map(s16_t x, s16_t in_min, s16_t in_max, s16_t out_min, s16_t out_max);
@@ -170,6 +173,16 @@ void run_command(char *command)
         }
 }
 
+// run through script outside of interrupt
+void run_script() {
+
+    while (deque(&op_queue, &cmd))
+        run_command(cmd.data);
+                
+        // printf("%x %x %x %x\n", cmd.data[0],cmd.data[1],cmd.data[2],cmd.data[3]);
+        move_motors(0, 0);
+}
+
 bool this;
 bool all;
 bool receiving = false;
@@ -200,6 +213,12 @@ void message_decoder(char *topic, char *data)
         }
     }
 
+    // params logic
+    if(data[1] == PARAMS_OP && imu_buf_flag-->0) 
+        publish_with_strlen_qos0(RC_TOPIC, imu_buf, IMU_BUF_LEN);
+
+
+
     // assign logic
     else if (*(topic + 10) == 's')
     {
@@ -209,6 +228,7 @@ void message_decoder(char *topic, char *data)
             disconnect();
             sleep_ms(40);
             assign_data = data[2];
+            imu_buf[0] = assign_data;
             sprintf(id, "%d", assign_data);
             set_id_for_reconnect(id);
             connect(&id);
@@ -244,10 +264,8 @@ void message_decoder(char *topic, char *data)
             if (op_queue.current_load)
             {
                 script_active = true;
-                while (deque(&op_queue, &cmd))
-                    run_command(cmd.data);
+                run_script();
                 
-                   // printf("%x %x %x %x\n", cmd.data[0],cmd.data[1],cmd.data[2],cmd.data[3]);
                 move_motors(0, 0);
 
                 ack[0] = assign_data;
@@ -281,42 +299,19 @@ void message_decoder(char *topic, char *data)
         }
     
     } // end message rcv
-    /*
-                if((msg.payload[0] == assign_data^0x80) or  msg.payload[0] == 0xff):
-                if(msg.payload[1] == rc.SCRIPT_OP):
-                    if(msg.payload[2] == rc.SCRIPT_INCOMING):
-                        synched = False
-                        cmd_buf = []
-                        operations = msg.payload[3]
-                        receiving = True
-                    elif(msg.payload[2]== rc.SCRIPT_BEGIN):
-                        if(cmd_buf):
-                            script_active = True
-                            for cmd in cmd_buf:
-                                msg.topic = rc.SCRIPT_TOPIC
-                                msg.payload = cmd
-                                run_script(client,msg) //weird python thing won't let me recursively call this on_message fcn...
-                            client.publish("/rc/com", ((int(client_id) << 8) | rc.SCRIPT_END).to_bytes(2,'big'))
-                            cmd_buf = []
 
-                    elif(msg.payload[2] == rc.SYNC_STATUS):
-                        synched = msg.payload[3]
-                    elif(msg.payload[2] == rc.SCRIPT_END):
-                        if(receiving):
-                            client.publish("/rc/com", ((int(client_id) << 8) | rc.SCRIPT_RECIEVED).to_bytes(2,'big'))
-                            receiving = False
-                            print(cmd_buf)
-                if receiving:
-                    cmd_buf.append(msg.payload)
-           */
 }
+
+
+static void hw_loop();
+static void mqtt_loop();
 
 int main()
 {
     /* script init */
     op_cnt = 0;
-
     script_active = false;
+
     /* PWM init */
     gpio_set_function(DRIVE_A, GPIO_FUNC_PWM);
     gpio_set_function(DRIVE_B, GPIO_FUNC_PWM);
@@ -324,22 +319,13 @@ int main()
     gpio_set_function(STEER_A, GPIO_FUNC_PWM); 
     gpio_set_function(STEER_B, GPIO_FUNC_PWM);
 
-   // gpio_init(STEER_A);
-   // gpio_init(STEER_B);
-   // gpio_set_dir(STEER_A, GPIO_OUT); 
-   // gpio_set_dir(STEER_B, GPIO_OUT); 
-
     drive_slice = pwm_gpio_to_slice_num(14);
     steer_slice = pwm_gpio_to_slice_num(12);
 
     pwm_set_enabled(drive_slice, true);
     pwm_set_enabled(steer_slice, true);
     
-
-    //   pwm_set_enabled(steer_slice, true);
     // #################################################
-
-
 
     stdio_init_all();
 
@@ -347,12 +333,31 @@ int main()
    // vreg_set_voltage(VREG_VOLTAGE_1_30);
    // set_sys_clock_khz(250000,true);
 
+
     //connect to wifi and MQTT broker
+
     mqtt_init("rc_unassigned");
 
     //set local message decoder callback
     set_message_decoder(&message_decoder);
 
+    // init IMU data transfer logic
+    imu_buf_flag = 0;
+    imu_buf[1] = PARAMS_OP;
+
+    // run hw polling on core1
+    multicore_launch_core1(hw_loop);
+
+    // continue main mqtt logic on core0
+    mqtt_loop();
+
+    return 0;
+
+
+}
+
+static void mqtt_loop()
+{
     int x = 0;
 
     while (1)
@@ -363,18 +368,39 @@ int main()
             publish(RC_TOPIC, ASSIGN_REQ);
             wait(500);
         }
-        // wheel just in case loop is too tight
-        else /*while (x < 3)
-        {
-            putchar(wheel[x++]);
-            putchar('\r');
-        }
-        */x = 0;
-        }
-        
-    
-    
+        // loop logic to keep from getting too tight
+        else
+            x = 0;
+    }
+
     return 0;
+}
+
+
+// I2C reading for async IMU data buffer updates
+
+static void hw_loop()
+{
+
+    for (;;)
+    {
+        //example data
+        float x[] = {0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.10, 0.11, 0.12, 0.13, 0.14, 0.15, 0.16, 0.17, 0.18};
+        u16_t temp = 0;
+
+        // put i2c code here to get the 3 vectors with correct calibration and then normalize each vector component
+
+        for (int i = 0; i < IMU_BUF_LEN - 3; i += 2)
+        {
+            //convert normalized floats to half float in u16 format
+            temp = x[i] < 1 ? (u16_t)((((float)x[i]) / 16.0) * 65535) : -1;
+            imu_buf[i + 2] = (temp >> 8) & 0xff;
+            imu_buf[i + 3] = temp & 0xff;
+        }
+
+        imu_buf_flag = 1;
+        sleep_ms(33); // ~30 updates/sec
+    }
 }
 
 s16_t arduino_map(s16_t x, s16_t in_min, s16_t in_max, s16_t out_min, s16_t out_max)

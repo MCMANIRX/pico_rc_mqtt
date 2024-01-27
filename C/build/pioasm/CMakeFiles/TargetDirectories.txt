@@ -1,3 +1,0 @@
-C:/Users/mcser/Documents/scoo/NCAT 2023-24/Second/fadl/proj/pico_c/mqtt-tst/build/pioasm/CMakeFiles/pioasm.dir
-C:/Users/mcser/Documents/scoo/NCAT 2023-24/Second/fadl/proj/pico_c/mqtt-tst/build/pioasm/CMakeFiles/edit_cache.dir
-C:/Users/mcser/Documents/scoo/NCAT 2023-24/Second/fadl/proj/pico_c/mqtt-tst/build/pioasm/CMakeFiles/rebuild_cache.dir
