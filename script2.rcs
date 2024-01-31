@@ -19,9 +19,19 @@
 #move(0,f,100,r,3000)
 
 sync {
-    car(0) {
-        ymove(f,50,400)
-        wait(1000)
-        ymove(b,70,300)
-    }
+	car(0) {
+
+move(f,45,l,50,100)
+wait(200)
+move(f,45,r,50,100)
+wait(200)
+move(f,45,l,50,100)
+wait(200)
+move(f,45,r,50,100)
+wait(200)
+move(f,45,l,50,100)
+wait(200)
+move(f,45,r,50,100)
+wait(200)
+}
 }

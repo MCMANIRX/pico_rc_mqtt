@@ -36,7 +36,7 @@
 # byte 0: ID
 # byte 1: MOVE_OP (0)
 # byte 2: y-axis speed + dir as int8_t 
-# byte 3: x-axis dir as int8_t
+# byte 3: x-axis speed + dir as int8_t
 # byte 4: hi byte of 16 bit duration in ms
 # byte 5: lo byte of 16 bit duration in ms
 #
@@ -229,13 +229,13 @@ def compileCommands(command,id):
                     if id != 'none':
                         _cmd_buf.append(rc.compileCommand(id,rc.MOVE_OP,
                                                           rc.to_8_signed(rc.move_direction_map.get(params[0])*rc.arduino_map(int(params[1]),0,100,0,127,0))<<24 
-                                                        | rc.to_8_signed(rc.move_direction_map.get(params[2])*rc.STEER_THRESH)<<16
-                                                        | int(params[3]),6))
+                                                        | rc.to_8_signed(rc.move_direction_map.get(params[2])*rc.arduino_map(int(params[3]),0,100,0,127,0))<<16
+                                                        | int(params[4]),6))
                     else: 
                         _cmd_buf.append(rc.compileCommand(params[0],rc.MOVE_OP,
                                                           rc.to_8_signed(rc.move_direction_map.get(params[1])*rc.arduino_map(int(params[2]),0,100,0,127,0))<<24 
-                                                        | rc.to_8_signed(rc.move_direction_map.get(params[3])*rc.STEER_THRESH)<<16
-                                                        | int(params[4]),6))                        
+                                                        | rc.to_8_signed(rc.move_direction_map.get(params[3])*rc.arduino_map(int(params[4]),0,100,0,127,0))<<16
+                                                        | int(params[5]),6))                        
                     break        
 
     block_len+=1

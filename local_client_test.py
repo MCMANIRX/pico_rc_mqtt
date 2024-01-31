@@ -24,6 +24,9 @@ assigned = False
 reassign = False
 
 
+DUMMY_PARAMS = 0xfeeddeafbeefdeadbeefbeadbeefbabe4b1d
+
+
 
 
 def move_motors(x,y):
@@ -93,7 +96,7 @@ def on_message(client, userdata, msg):
             client.publish(rc.RC_TOPIC, ((int(client_id) << 8) | 0x6).to_bytes(2,'big'))
     
     #check if message assigns unique ID
-    if("assign" in str(msg.topic)):
+    elif("assign" in str(msg.topic)):
         if(msg.payload[0] == assign_data^0x80):
             assign_data =  0x80 | int(msg.payload[2])
             reassign = True
@@ -115,6 +118,9 @@ def on_message(client, userdata, msg):
                     client.publish(rc.RC_TOPIC,((int(client_id) << 16) | (rc.RSSI_REQ << 8) | 0).to_bytes(3,'big'))
                     
             #elif receiving and (msg.payload[1]==rc.MSG_OP):
+                elif msg.payload[1] == rc.PARAMS_OP and assigned:
+                    client.publish(rc.RC_TOPIC,rc.compileCommand(int(client_id),rc.PARAMS_OP,DUMMY_PARAMS,20))
+        
 
             
             #print(msg.topic+" "+str(msg.payload)) # debug

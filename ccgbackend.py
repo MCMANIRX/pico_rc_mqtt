@@ -15,6 +15,9 @@
 # - Automatic ID switching ([2,1,3,4]->[0,1,2,3])
 # - RSSI (connectivity strength) tracking
 # - Analog Joystick and Trigger speed control with controller
+# - Param Collection at 15 strings/sec (strlen = 20)
+# - Move command now with angle from 0,100 (full range = 30 degrees, 
+#           --> power required for initial 5 degree offset = 25545 as s16 and =~50 as s8)
 
 # NOTE:
 # sequence transmission routine ->
@@ -35,6 +38,7 @@
 
 # BUG:
 # If messages are transmitting slower than usual, you may need to restart the MQTT server.
+# Why is this GUI client so lossy??????????????????
 
 # FIXME:
 # The Pico W seems to uncommonly miss an MQTT message. Might need to change the QoS of all client.publish() calls to 0. Also may need to look into FreeRTOS.
@@ -566,7 +570,7 @@ def polling_loop():
 
    # enq_pulse.delay_ms(1000)
    
-    param_delay.delay_ms(33)
+    param_delay.delay_ms(66)
 
 
     while(True):
@@ -578,7 +582,7 @@ def polling_loop():
         
         if(param_delay.timeout()):
             client.publish(rc.ACTION_TOPIC,rc.compileCommand(0xff,rc.PARAMS_OP,0,2))
-            param_delay.delay_ms(33)
+            param_delay.delay_ms(66)
 
 
 
