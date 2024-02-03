@@ -12,7 +12,7 @@
 #include "lwip/apps/mqtt.h"
 #include "hardware/pwm.h"
 #include "hardware/vreg.h"
-#include "rc_mqtt.h"
+#include "mqtt_helper.h"
 #include "pico/multicore.h"
 
 

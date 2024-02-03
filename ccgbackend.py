@@ -571,9 +571,13 @@ def polling_loop():
    # enq_pulse.delay_ms(1000)
    
     param_delay.delay_ms(66)
+    
 
 
     while(True):
+        
+        time.sleep(0.001)
+
         
         # send enq pulse every .25 sec
        # if enq_pulse.timeout():
