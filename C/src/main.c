@@ -319,8 +319,8 @@ int main()
     gpio_set_function(STEER_A, GPIO_FUNC_PWM); 
     gpio_set_function(STEER_B, GPIO_FUNC_PWM);
 
-    drive_slice = pwm_gpio_to_slice_num(14);
-    steer_slice = pwm_gpio_to_slice_num(12);
+    drive_slice = pwm_gpio_to_slice_num(DRIVE_A);
+    steer_slice = pwm_gpio_to_slice_num(STEER_A);
 
     pwm_set_enabled(drive_slice, true);
     pwm_set_enabled(steer_slice, true);
