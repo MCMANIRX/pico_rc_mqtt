@@ -428,9 +428,9 @@ def on_message(client, userdata, msg):
     global script_done
     global message_buf
 
-    #requires small delay for timing issue unique to gui client..
-    if(script_active):
-        time.sleep(0.001)
+    #requires small delay for timing issue unique to gui client.. ## fixed??
+ #   if(script_active):
+   #     time.sleep(0.001)
         
     #logText("IN       ",msg.topic+" "+str(msg.payload)) #debug
     
@@ -576,7 +576,6 @@ def polling_loop():
 
     while(True):
         
-        time.sleep(0.001)
 
         
         # send enq pulse every .25 sec
