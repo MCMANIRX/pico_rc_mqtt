@@ -407,4 +407,46 @@ s16_t arduino_map(s16_t x, s16_t in_min, s16_t in_max, s16_t out_min, s16_t out_
 {
     return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
+int16_t x; // signed 16-bit 
+int16_t y; // signed 16-bit 
+bool steer;
+int16_t angle; // Assuming angle is declared and initialized elsewhere in the code
+int16_t reference_angle = 0; // Approximate reference angle
 
+void move_forward() {
+    // Code to move the car forward
+}
+
+void move_backward() {
+    // Code to move the car backward
+}
+
+void move_left() {
+  // Code to move the car left 
+}
+
+void move_right() {
+  // Code to move the car right 
+}
+
+// int main() {
+
+int16_t dist = angle - reference_angle; // Calculate distance from reference angle
+
+    while (steer) {
+        if (angle == 0 || angle == 360) {
+            move_forward();
+        }
+        else if (angle == 180) {
+            move_backward();
+        }
+        else if (angle > 0 && angle < 180) {
+            move_right();
+        }
+        else if (angle > 180 && angle < 360) {
+            move_left();
+        }
+    }
+
+    return 0;
+// }
