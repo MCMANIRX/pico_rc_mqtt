@@ -24,7 +24,6 @@ assigned = False
 reassign = False
 
 
-DUMMY_PARAMS = 0xfeeddeafbeefdeadbeefbeadbeefbabe4b1d
 
 
 
@@ -88,12 +87,26 @@ def on_message(client, userdata, msg):
     
     
     print(msg.topic+" "+str(msg.payload)) # debug
+    
+
 
     
     
     if("enq" in str(msg.topic)):
         if(len(client_id)<=2):
             client.publish(rc.RC_TOPIC, ((int(client_id) << 8) | 0x6).to_bytes(2,'big'))
+            
+            
+    elif(msg.payload[1] & rc.MATLAB_FLAG): 
+        decoded_msg = []
+        decoded_msg.append(msg.payload[0])
+        decoded_msg.append(msg.payload[2])
+        for i in range(3, len(msg.payload)):
+            decoded_msg.append(msg.payload[i] * (-1 if (msg.payload[1] << (i - 2)) & 0x80 else 1))
+        msg.payload = decoded_msg
+        on_message(client,userdata,msg)
+        return
+
     
     #check if message assigns unique ID
     elif("assign" in str(msg.topic)):
@@ -118,8 +131,13 @@ def on_message(client, userdata, msg):
                     client.publish(rc.RC_TOPIC,((int(client_id) << 16) | (rc.RSSI_REQ << 8) | 0).to_bytes(3,'big'))
                     
             #elif receiving and (msg.payload[1]==rc.MSG_OP):
-                elif msg.payload[1] == rc.PARAMS_OP and assigned:
-                    client.publish(rc.RC_TOPIC,rc.compileCommand(int(client_id),rc.PARAMS_OP,DUMMY_PARAMS,20))
+               # elif msg.payload[1] == rc.PARAMS_OP and assigned:
+               #     client.publish(rc.RC_TOPIC,rc.compileCommand(int(client_id),rc.PARAMS_OP,DUMMY_PARAMS,20))
+                    
+                elif(msg.payload[1]&0xff == rc.PARAMS_OP and assigned):
+                    if(msg.payload[2] == rc.YAW):
+                        client.publish(rc.RC_TOPIC,rc.compileCommand(int(client_id),rc.PARAMS_OP,(rc.YAW<<16)|1,5))
+
         
 
             

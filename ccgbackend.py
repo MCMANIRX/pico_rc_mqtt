@@ -86,6 +86,9 @@ enq_pulse = NonBlockingDelay()
 global rssi_buf
 rssi_buf = []
 
+global param_buf
+param_buf = []
+
 # don't repeat old controller values
 global lastx, lasty,max_y,min_y
 lastx = 0
@@ -322,7 +325,7 @@ def auto_reassign():
         if x<_client and x not in clients:
           #  print(x)
             client.publish(rc.ASSIGN_TOPIC,rc.compileCommand(_client,rc.ASSIGN_OP,x,3))
-            gui_instance.client_update_signal.emit(clients,rssi_buf,[_client,x])
+            gui_instance.client_update_signal.emit(clients,rssi_buf,[_client,x],[],True)
 
         x+=1
 
@@ -390,7 +393,7 @@ def enquire():
     enq_timer_start+=1
     
     #send signal to update client tables in gui
-    gui_instance.client_update_signal.emit(clients,rssi_buf,[])
+    gui_instance.client_update_signal.emit(clients,rssi_buf,[],[],True)
     
    
     enq_buf = []
@@ -432,7 +435,9 @@ def on_message(client, userdata, msg):
  #   if(script_active):
    #     time.sleep(0.001)
         
-    #logText("IN       ",msg.topic+" "+str(msg.payload)) #debug
+   # logText("IN       ",msg.topic+" "+str(msg.payload)) #debug
+    client_id = msg.payload[0]
+
     
     # assign ID
     if("unassigned" in str(msg.payload)):
@@ -445,7 +450,6 @@ def on_message(client, userdata, msg):
 
     # client tracking
     elif(msg.payload[1]&7==rc.ACK):
-        client_id = msg.payload[0]
         if not (client_id in enq_buf):
             enq_buf.append(client_id)
     
@@ -463,11 +467,19 @@ def on_message(client, userdata, msg):
     # print next message for given ID in message_buffer
     if(msg.payload[1]&0xff == rc.PRINT_OP):
         print_msg(msg.payload[0])
-        
+    
+    # rssi stuff    
     elif(msg.payload[1]&0xff == rc.RSSI_REQ):
        # logText(rc.Colors.YELLOW+f"Client {msg.payload[0]}:"+rc.Colors.RESET,rc.from_8_signed(msg.payload[2]))
         client_id = msg.payload[0]
         rssi_buf.append({"rssi_data":[client_id,rc.from_8_signed(int(msg.payload[2]))]})
+    
+    elif(msg.payload[1]&0xff == rc.PARAMS_OP):
+        if(msg.payload[2] == rc.YAW):
+            param_buf.append({"yaw_data":[client_id,rc.from_16_float(((msg.payload[3] << 8) | (msg.payload[4])))]})
+        elif(msg.payload[2] == rc.INIT_IMU):
+            logText(rc.Colors.CYAN + f" client {client_id}'s IMU is active",rc.Colors.RESET)
+            
     
     # sequence begin logic    
     #print(script_active,sequence_active,recv_ack_count)
@@ -503,9 +515,8 @@ def _script_run():
 # high level fcn to make new thread for script execution
 def script_run():
     global script_active
-    if not script_active:     
-        script_thread = threading.Thread(target=_script_run,daemon=True)
-        script_thread.start()
+    if not script_active:  
+        _script_run()   
    
 def set_ctrl_mode(mode):
     global ctrl_mode
@@ -565,6 +576,8 @@ def polling_loop():
     global ctrl_mode
     global deadzone_x,deadzone_y
     
+    global param_buf
+    
     global rssi_flag
     global script_thread
 
@@ -584,7 +597,9 @@ def polling_loop():
         #    enq_pulse.delay_ms(1000)
         
         if(param_delay.timeout()):
-            client.publish(rc.ACTION_TOPIC,rc.compileCommand(0xff,rc.PARAMS_OP,0,2))
+            gui_instance.client_update_signal.emit([],[],[],param_buf,False)
+            param_buf = []
+            client.publish(rc.ACTION_TOPIC,rc.compileCommand(0xff,rc.PARAMS_OP,rc.YAW,3))
             param_delay.delay_ms(66)
 
 
@@ -625,7 +640,7 @@ def polling_loop():
                 sendctrl(client,x,y,"joy")
                 gpd0.delay_ms(1000/60)
             
-          #  print(_x,_y,x,y)
+           # print(_x,_y,x,y)
        
                 
             ###########################################
@@ -661,7 +676,7 @@ def polling_loop():
             # deploy script 
 
             if(not script_active and b_now and not b_last):
-                script_run()
+                gui_instance.run_script_signal.emit()
                                        
             b_last = b_now
             

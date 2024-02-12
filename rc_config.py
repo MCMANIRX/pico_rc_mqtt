@@ -19,6 +19,8 @@ PARAMS_OP       =  0x1f
 
 # request codes
 RSSI_REQ        =  0x21
+YAW             =  0x0
+INIT_IMU        =  0x1
 
 
 
@@ -28,6 +30,8 @@ SCRIPT_BEGIN     = 0xd
 SCRIPT_END       = 0x4                 # byte 1 client-side
 SCRIPT_RECEIVED  = (0x6 << 4) | 0x4    # byte 2 client-sides
 SYNC_STATUS      = 0x2
+
+MATLAB_FLAG      = 0x40
 
 ACK              = 0x6
 ENQ              = 0x5
@@ -44,7 +48,6 @@ TIMEOUT          = 10
 ############# CTRL  FCNS ##############
 # I miss C...
 def to_8_signed(x):
-    ret = bytearray(1)
     if(x<0):
         return ((abs(x^0xff)&0xff)-1)&0xff
     else:
@@ -52,11 +55,18 @@ def to_8_signed(x):
     
 def from_8_signed(x):
     x &=0xff
-    ret = bytearray(1)
     if(x&0x80):
         return -(abs(x^0xff)+1)
     else:
         return x
+    
+def from_16_float(x):
+    x&=0xffff
+    if(x>>8)&0x80:
+        x^=0xffff
+        x = -(abs(x)+1)
+    return x/32767.0
+    
     
 def clamp(value, min_val, max_val):
     return max(min(value, max_val), min_val)

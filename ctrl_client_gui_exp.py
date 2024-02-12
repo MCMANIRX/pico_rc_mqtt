@@ -25,7 +25,7 @@ class Client():
         self.id = id
         old_id = self.id
         self.data.setColumnCount(2)
-        self.data.setRowCount(1)
+        self.data.setRowCount(2)
         self.data.setHorizontalHeaderLabels(['Client', str(id)])    
           
         
@@ -46,7 +46,7 @@ class Client():
         
         idx = 0
             
-        if val<= -70 or val>0:
+        if val <= -70 or val > 0:
             idx = 2
 
         elif val <= -60:
@@ -57,6 +57,15 @@ class Client():
             
         self.data.setItem(0, 0, label)
         self.data.setItem(0, 1, value)
+        
+
+    def update_yaw(self,val):
+        
+        label = QTableWidgetItem("Yaw")
+        value = QTableWidgetItem(str(round(val*180.0,4)))
+            
+        self.data.setItem(1, 0, label)
+        self.data.setItem(1, 1, value)
             
             
                 
@@ -83,8 +92,9 @@ class CtrlClientGUI(QMainWindow):
     menu_options = ["New Script","Open Script","Save Script","Run Script"]
   
     clients = []
-    client_update_signal = pyqtSignal(list,list,list)
+    client_update_signal = pyqtSignal(list,list,list,list,bool)
     ext_logText_signal   = pyqtSignal(str)
+    run_script_signal    = pyqtSignal()
     filePath = ""
     
     auto_rename = False
@@ -157,7 +167,7 @@ class CtrlClientGUI(QMainWindow):
         
         # run script
         elif arg == self.menu_options[3]:
-            cc.script_run()
+            self.run_script()
             
     def radio_handler(self):
         arg = self.sender().text()
@@ -182,7 +192,7 @@ class CtrlClientGUI(QMainWindow):
                             
         # run script
         elif arg == self.v1_buttons[3]:
-            cc.script_run()
+            self.run_script()
         
         # clear log
         elif arg == self.v1_buttons[4]:
@@ -223,39 +233,52 @@ class CtrlClientGUI(QMainWindow):
                         if client in self.clients:
                             self.clients.remove(client)
                 
-            
+    
+    
+    def run_script(self):
+        cc.script_run()        
         
     # add and remove clients based on backend tracking
-    def client_update(self,client_ids,rssi_values,client_and_id):
-            
-        change = False
+    def client_update(self,client_ids,rssi_values,client_and_id,yaw_values,pulse):
         
-        if len(self.clients) < len(client_ids):
-            change = True
-            for client_id in client_ids:
-                if not any(client.id == client_id for client in self.clients):
-                    self.add_client(client_id)
+       # print(yaw_values)
+        
+        change = False
 
+        if pulse:
             
-                    
-        elif len(self.clients) > len(client_ids):
-            change = True
-            for client in self.clients:
-                if client.id not in client_ids:
-                    self.remove_client(client)
-            #self.removeAllClients()
-                                          
-     
-        if (self.auto_rename and client_and_id):
-            for client in self.clients:
-                if client_and_id and client.id == client_and_id[0]:
-                    client.update_id(client_and_id[1])
-            return
-        for rssi_datum in rssi_values:
-            for client in self.clients:
-                if client.id == rssi_datum['rssi_data'][0]:
-                    client.update_rssi(rssi_datum['rssi_data'][1])
+            
+            if len(self.clients) < len(client_ids):
+                change = True
+                for client_id in client_ids:
+                    if not any(client.id == client_id for client in self.clients):
+                        self.add_client(client_id)
+
                 
+                        
+            elif len(self.clients) > len(client_ids):
+                change = True
+                for client in self.clients:
+                    if client.id not in client_ids:
+                        self.remove_client(client)
+                #self.removeAllClients()
+                                            
+        
+            if (self.auto_rename and client_and_id):
+                for client in self.clients:
+                    if client_and_id and client.id == client_and_id[0]:
+                        client.update_id(client_and_id[1])
+                return
+            
+            for rssi_datum in rssi_values:
+                for client in self.clients:
+                    if client.id == rssi_datum['rssi_data'][0]:
+                        client.update_rssi(rssi_datum['rssi_data'][1])
+        else:
+            for yaw in yaw_values:
+                for client in self.clients:
+                    if client.id == yaw['yaw_data'][0]:
+                        client.update_yaw(yaw['yaw_data'][1])         
                           
 
         if(change):
@@ -416,6 +439,8 @@ class CtrlClientGUI(QMainWindow):
         # setup signals from QThread
         self.client_update_signal.connect(self.client_update)
         self.ext_logText_signal.connect(self.logText)
+        self.run_script_signal.connect(self.run_script)
+
 
 
         

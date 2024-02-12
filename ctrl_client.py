@@ -379,6 +379,12 @@ def on_message(client, userdata, msg):
     # print next message for given ID in message_buffer
     elif(msg.payload[1]&0xff == rc.PRINT_OP):
         print_msg(msg.payload[0])
+        
+    elif(msg.payload[1]&0xff == rc.PARAMS_OP):
+        if(msg.payload[2] == rc.INIT_IMU):
+            client_id = msg.payload[0]
+
+            print(rc.Colors.CYAN + f" client {client_id}'s IMU is active",rc.Colors.RESET)
     
     # sequence begin logic    
     if(script_active and not recv_ack_count):
