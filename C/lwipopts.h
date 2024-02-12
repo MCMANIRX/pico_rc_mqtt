@@ -193,6 +193,6 @@
 #define ALTCP_MBEDTLS_DEBUG LWIP_DBG_ON
 #define MQTT_DEBUG LWIP_DBG_ON*/
 #define MEMP_NUM_SYS_TIMEOUT (LWIP_NUM_SYS_TIMEOUT_INTERNAL + 1)
-#define MQTT_REQ_MAX_IN_FLIGHT (24) // Try with 0? Try with 10?
+#define MQTT_REQ_MAX_IN_FLIGHT (64) // Try with 0? Try with 10?
 
 #endif /* __LWIPOPTS_H__ */

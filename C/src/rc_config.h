@@ -29,6 +29,8 @@
 #define SCRIPT_RECEIVED  (ACK << 4) | SCRIPT_END  
 #define SYNC_STATUS      0x2
 
+#define MATLAB_FLAG      0x40
+
  
 
 // drive related constants
@@ -42,8 +44,21 @@
 
 // multicore-related constants
 
-#define IMU_PARAM_COUNT 3
-#define IMU_BUF_LEN     (IMU_PARAM_COUNT * 6)+2
+#define IMU_PARAM_COUNT 1
+#define IMU_BUF_LEN     (IMU_PARAM_COUNT * 2)+3
+#define SETTLE_THRESH   0.0005
+#define RESET_THRESH    20
+
+#define EULER_NORM      180.0f
+
+
+#define YAW             0x0
+#define IMU_INIT        0x1
+
+
+const float Kp = 5109.0; //5109.0;
+
+
 
 
 

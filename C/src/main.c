@@ -14,6 +14,10 @@
 #include "hardware/vreg.h"
 #include "mqtt_helper.h"
 #include "pico/multicore.h"
+#include <math.h>
+#include "inc/imu/mpu6050_DMP_port.h"
+
+
 
 
 u16_t drive_slice;
@@ -29,10 +33,33 @@ u8_t assign_data;
 char id[4];
 char ack[2];
 
+
 u8_t imu_buf[IMU_BUF_LEN];
 u8_t imu_buf_flag;
 
+s8_t last_x,last_y;
 
+
+bool dmpCalibrated;
+bool prop_steer;
+float ref_yaw;
+float dist;
+u32_t rot_amt;
+
+extern float yaw;
+extern volatile bool isData;
+extern void poll_imu();
+extern void init_imu();
+
+
+
+
+u32_t clamp(float x, int limit) {
+
+    u32_t _x = round(x);
+
+    return _x > limit ? limit : _x;
+}
 
 
 s16_t arduino_map(s16_t x, s16_t in_min, s16_t in_max, s16_t out_min, s16_t out_max);
@@ -42,7 +69,7 @@ s16_t arduino_map(s16_t x, s16_t in_min, s16_t in_max, s16_t out_min, s16_t out_
 
 bool waiting;
 
-int alarm_cb(alarm_id_t id, void *user_data)
+int wait_cb(alarm_id_t id, void *user_data)
 {
 
     waiting = false;
@@ -55,7 +82,7 @@ void wait(int time)
 {
 
     waiting = true;
-    add_alarm_in_ms(time, alarm_cb, NULL, false);
+    add_alarm_in_ms(time, wait_cb, NULL, false);
     printf("start wait %d\n", time);
 
     int x = 0;
@@ -70,6 +97,13 @@ void wait(int time)
 
 void move_motors(s8_t x, s8_t y)
 {
+
+    if(!dmpCalibrated)
+        return;
+
+
+    last_x = x;
+    last_y = y;
 
     if (y < 0)
     {
@@ -90,30 +124,36 @@ void move_motors(s8_t x, s8_t y)
         pwm_set_gpio_level(DRIVE_A, 0);
     }
 
+
+
     if (abs(x) > STEER_THRESH)
-    {
-        if (x < 0)
+
         {
+            prop_steer = false;
 
-        pwm_set_gpio_level(STEER_A, abs(x * SPEED_MULT));
-        pwm_set_gpio_level(STEER_B, 0);
+            if (x < 0)
+            {
 
+            pwm_set_gpio_level(STEER_A, abs(x * SPEED_MULT));
+            pwm_set_gpio_level(STEER_B, 0);
+            }
 
-           // gpio_put(STEER_A, 1);
-          //  gpio_put(STEER_B, 0);
+            else if (x > 0)
+            {
+
+            pwm_set_gpio_level(STEER_A, 0);
+            pwm_set_gpio_level(STEER_B,  abs(x * SPEED_MULT));
+
+            }
         }
-
-        else if (x > 0)
-        {
-
-        pwm_set_gpio_level(STEER_A, 0);
-        pwm_set_gpio_level(STEER_B,  abs(x * SPEED_MULT));
-       //     gpio_put(STEER_B, 1);
-       //     gpio_put(STEER_A, 0);
-        }
+    else if(y){
+        prop_steer = true;
+        ref_yaw = yaw;
     }
+
     else
     {
+        prop_steer = false;
 
     pwm_set_gpio_level(STEER_A, 0);
     pwm_set_gpio_level(STEER_B, 0);
@@ -121,6 +161,16 @@ void move_motors(s8_t x, s8_t y)
      //   gpio_put(STEER_B, 0);
      //   gpio_put(STEER_A, 0);
     }
+}
+
+int failsafe_cb() {
+
+    move_motors(0,0);   
+    printf("will");
+
+    return 0;
+
+
 }
 
 void send_rssi() {
@@ -183,17 +233,19 @@ void run_script() {
         move_motors(0, 0);
 }
 
-bool this;
+bool _this;
 bool all;
 bool receiving = false;
+alarm_id_t failsafe;
+
 
 void message_decoder(char *topic, char *data)
 {
     all = false;
-    this = false;
+    _this = false;
 
     if (data[0] == assign_data)
-        this = true;
+        _this = true;
     else if (data[0] == 0xff)
         all = true;
 
@@ -207,22 +259,42 @@ void message_decoder(char *topic, char *data)
         {
             //blink(1,1);
 
+            cancel_alarm(failsafe);
+            failsafe = add_alarm_in_ms(2500,failsafe_cb, NULL, false);
+
+
             ack[0] = assign_data;
             ack[1] = ACK;
             publish_with_strlen_qos0(RC_TOPIC, ack, 2); // QoS 0 to alleviate packet loss errors
         }
     }
 
+    else if (data[1] & MATLAB_FLAG)
+    {
+        u8_t decoded_msg[8];
+        decoded_msg[0] = data[0];
+        decoded_msg[1] = data[2];
+        for (int i = 2; i < 8; ++i)
+            decoded_msg[i] = data[i+1] * (data[1] << (i - 1) & 0x80 ? -1 : 1);
+
+        message_decoder(topic, decoded_msg);
+        return;
+    }
+
     // params logic
-    if(data[1] == PARAMS_OP && imu_buf_flag-->0) 
-        publish_with_strlen_qos0(RC_TOPIC, imu_buf, IMU_BUF_LEN);
+    if(data[1] == PARAMS_OP && imu_buf_flag-->0) {
+
+        if(data[2] == YAW)
+            publish_with_strlen_qos0(RC_TOPIC, imu_buf, IMU_BUF_LEN);
+
+    }
 
 
 
     // assign logic
     else if (*(topic + 10) == 's')
     {
-        if (this || !assign)
+        if (_this || !assign)
         {
             assign = true;
             disconnect();
@@ -239,7 +311,7 @@ void message_decoder(char *topic, char *data)
     else if (*(topic + 11) == 't')
     {
         if (!script_active)
-            if (this || all){
+            if (_this || all){
                 if (data[1] == MOVE_OP)
                     move_motors((s8_t)data[2], (s8_t)data[3]);
                 else if (data[1] == RSSI_REQ)
@@ -248,7 +320,7 @@ void message_decoder(char *topic, char *data)
     }
     
     // script logic
-    else if (this || all) {
+    else if (_this || all) {
         if(data[1] == SCRIPT_OP)
     {
 
@@ -308,9 +380,17 @@ static void mqtt_loop();
 
 int main()
 {
+
     /* script init */
     op_cnt = 0;
     script_active = false;
+
+    /* steer init */
+    dmpCalibrated = false;
+    prop_steer = false;
+    ref_yaw = 0;
+    last_x = 0;
+    last_y = 0;
 
     /* PWM init */
     gpio_set_function(DRIVE_A, GPIO_FUNC_PWM);
@@ -319,8 +399,8 @@ int main()
     gpio_set_function(STEER_A, GPIO_FUNC_PWM); 
     gpio_set_function(STEER_B, GPIO_FUNC_PWM);
 
-    drive_slice = pwm_gpio_to_slice_num(DRIVE_A);
-    steer_slice = pwm_gpio_to_slice_num(STEER_A);
+    drive_slice = pwm_gpio_to_slice_num(14);
+    steer_slice = pwm_gpio_to_slice_num(12);
 
     pwm_set_enabled(drive_slice, true);
     pwm_set_enabled(steer_slice, true);
@@ -344,6 +424,7 @@ int main()
     // init IMU data transfer logic
     imu_buf_flag = 0;
     imu_buf[1] = PARAMS_OP;
+
 
     // run hw polling on core1
     multicore_launch_core1(hw_loop);
@@ -373,7 +454,6 @@ static void mqtt_loop()
             x = 0;
     }
 
-    return 0;
 }
 
 
@@ -382,71 +462,110 @@ static void mqtt_loop()
 static void hw_loop()
 {
 
-    for (;;)
+    /* calibrate IMU */
+    init_imu();
+    while(!isData) {
+        poll_imu();
+        ref_yaw = 0;
+    }
+    isData = false;
+
+    float last_yaw  = -360;
+
+    while (1)
+    {
+        poll_imu();
+        printf("%f\t%f\t%f\n", yaw, last_yaw, dist);
+
+        if (yaw != last_yaw && isData)
+        {
+            dist = fabs(yaw - last_yaw);
+            if (dist < SETTLE_THRESH)
+                break;
+            last_yaw = yaw;
+            isData = false;
+        }
+    }
+    ///////////////////////////////////////////
+
+    ref_yaw = yaw;
+    rot_amt = 0;
+
+    printf("IMU Calibrated!\nreference yaw is %.2f\n",ref_yaw);
+    blink(2,100);
+    dmpCalibrated = true;
+    imu_buf[2] = IMU_INIT;
+
+    while(!assign);
+    publish_with_strlen_qos0(RC_TOPIC,imu_buf,3);
+
+    imu_buf[2] = YAW;
+
+
+
+    u16_t temp = 0;
+    float local_yaw,f16_l_yaw;
+
+    
+
+    while(1) {
+
+        poll_imu();
+        imu_buf_flag = 1;
+        f16_l_yaw = yaw/EULER_NORM;
+
+        
+
+  //     printf("%.2f\t%.2f\t%d\n",dist,yaw,val);
+     //  sleep_ms(10);
+
+
+             for (int i = 0; i < IMU_PARAM_COUNT; i+=2)
+        {
+            //convert normalized floats to half float in u16 format
+            temp = f16_l_yaw < 1 ? (s16_t)((((float)f16_l_yaw)) * 32767) : -1;
+            imu_buf[i + 3] = (temp >> 8) & 0xff;
+            imu_buf[i + 4] = temp & 0xff;
+        }
+
+        if (prop_steer)
+        {
+
+            dist = fabs(yaw - ref_yaw);
+            rot_amt = clamp(clamp(dist, 30) * Kp, 65535);
+
+            if (yaw < ref_yaw)
+                pwm_set_gpio_level(ref_yaw < 0 ? (last_y < 0 ? STEER_B : STEER_A) : STEER_B, rot_amt);
+            else
+                pwm_set_gpio_level(ref_yaw > 0 ? (last_y > 0 ? STEER_B : STEER_A) : STEER_B, rot_amt);
+        }
+    }
+
+}
+
+  /*  for (;;)
     {
         //example data
-        float x[] = {0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.10, 0.11, 0.12, 0.13, 0.14, 0.15, 0.16, 0.17, 0.18};
+        float x[] = {0.1234567};
         u16_t temp = 0;
 
         // put i2c code here to get the 3 vectors with correct calibration and then normalize each vector component
 
-        for (int i = 0; i < IMU_BUF_LEN - 3; i += 2)
+        for (int i = 0; i < IMU_PARAM_COUNT; i+=2)
         {
             //convert normalized floats to half float in u16 format
-            temp = x[i] < 1 ? (u16_t)((((float)x[i]) / 16.0) * 65535) : -1;
-            imu_buf[i + 2] = (temp >> 8) & 0xff;
-            imu_buf[i + 3] = temp & 0xff;
+            temp = x[i] < 1 ? (u16_t)((((float)x[i])) * 65535) : -1;
+            imu_buf[i + 3] = (temp >> 8) & 0xff;
+            imu_buf[i + 4] = temp & 0xff;
         }
 
         imu_buf_flag = 1;
         sleep_ms(33); // ~30 updates/sec
     }
-}
+}*/
 
 s16_t arduino_map(s16_t x, s16_t in_min, s16_t in_max, s16_t out_min, s16_t out_max)
 {
     return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
-int16_t x; // signed 16-bit 
-int16_t y; // signed 16-bit 
-bool steer;
-int16_t angle; // Assuming angle is declared and initialized elsewhere in the code
-int16_t reference_angle = 0; // Approximate reference angle
 
-void move_forward() {
-    // Code to move the car forward
-}
-
-void move_backward() {
-    // Code to move the car backward
-}
-
-void move_left() {
-  // Code to move the car left 
-}
-
-void move_right() {
-  // Code to move the car right 
-}
-
-// int main() {
-
-int16_t dist = angle - reference_angle; // Calculate distance from reference angle
-
-    while (steer) {
-        if (angle == 0 || angle == 360) {
-            move_forward();
-        }
-        else if (angle == 180) {
-            move_backward();
-        }
-        else if (angle > 0 && angle < 180) {
-            move_right();
-        }
-        else if (angle > 180 && angle < 360) {
-            move_left();
-        }
-    }
-
-    return 0;
-// }
