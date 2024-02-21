@@ -1,37 +1,5 @@
 # script to test procedural command deployment latency of a given ctrl client
 
-#move(0,f,100,l,30)
-#ymove(0,f,75,100)
-#ymove(0,f,75,100)
-#ymove(0,f,75,100)
-#ymove(0,f,75,100)
-#ymove(0,f,75,100)
-#ymove(0,f,75,100)
-#ymove(0,f,75,100)
-#ymove(0,f,75,100)
-#ymove(0,f,75,100)
-#ymove(0,f,75,100)
-#ymove(0,f,75,100)
-#ymove(0,f,75,100)
-#ymove(0,f,75,100)
-#ymove(0,f,75,100)
+ymove(0,f,50,1000)
+move(0,b,70,l,45,500)
 
-#move(0,f,100,r,3000)
-
-sync {
-	car(0) {
-
-move(f,45,l,50,100)
-wait(200)
-move(f,45,r,50,100)
-wait(200)
-move(f,45,l,50,100)
-wait(200)
-move(f,45,r,50,100)
-wait(200)
-move(f,45,l,50,100)
-wait(200)
-move(f,45,r,50,100)
-wait(200)
-}
-}

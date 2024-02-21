@@ -640,7 +640,7 @@ def polling_loop():
                 sendctrl(client,x,y,"joy")
                 gpd0.delay_ms(1000/60)
             
-           # print(_x,_y,x,y)
+            print(_x,_y,x,y)
        
                 
             ###########################################

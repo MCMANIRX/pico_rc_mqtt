@@ -18,10 +18,13 @@ pico_sdk_init()
 # rest of your project
 add_executable(rc
   #src/rc_mqtt.c
-  src/main.C
+  src/main.c
+  inc/imu/mpu6050_DMP_port.cpp 
+  inc/imu/MPU6050.cpp
+  inc/imu/I2Cdev.cpp
   #src/wifi_temp2.c
   #src/motor_test.c
- 
+ # pwm.c
 
 
 

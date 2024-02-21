@@ -35,6 +35,7 @@
 
 // drive related constants
 #define SPEED_MULT      512
+#define STEER_MULT      1.15
 #define STEER_THRESH    30
 #define DRIVE_A         14
 #define DRIVE_B         15

@@ -52,6 +52,10 @@ extern void poll_imu();
 extern void init_imu();
 
 
+u16_t half_float(float x) {
+
+    return x < 1 ? (s16_t)(x * 32767) : -1;
+}
 
 
 u32_t clamp(float x, int limit) {
@@ -59,6 +63,13 @@ u32_t clamp(float x, int limit) {
     u32_t _x = round(x);
 
     return _x > limit ? limit : _x;
+}
+
+s8_t clamp8(float x, int limit) {
+
+    s32_t _x = round(x);
+
+    return (s8_t)(abs(_x) > limit ? (_x < 0 ? -limit : limit) : _x);
 }
 
 
@@ -97,10 +108,12 @@ void wait(int time)
 
 void move_motors(s8_t x, s8_t y)
 {
-
     if(!dmpCalibrated)
         return;
 
+    // make steering a little bit better
+    if(!script_active)
+        x = clamp8(x*STEER_MULT,127);
 
     last_x = x;
     last_y = y;
@@ -108,6 +121,13 @@ void move_motors(s8_t x, s8_t y)
     if (y < 0)
     {
      //   pwm_set_gpio_level(DRIVE_B, abs(127 * SPEED_MULT)); 
+
+     // 14 = DRIVE_A = INB1
+     // 15 = DRIVE_B = INA1
+
+     // 12 = STEER_A = INA2
+     // 13 = STEER_B = INB2
+
         pwm_set_gpio_level(DRIVE_B, abs(y * SPEED_MULT)); //may need to redo with smaller function??
         pwm_set_gpio_level(DRIVE_A, 0);
     }
@@ -265,7 +285,7 @@ void message_decoder(char *topic, char *data)
 
             ack[0] = assign_data;
             ack[1] = ACK;
-            publish_with_strlen_qos0(RC_TOPIC, ack, 2); // QoS 0 to alleviate packet loss errors
+            publish_with_strlen(RC_TOPIC, ack, 2); // QoS 0 to alleviate packet loss errors
         }
     }
 
@@ -425,6 +445,7 @@ int main()
     imu_buf_flag = 0;
     imu_buf[1] = PARAMS_OP;
 
+  //  dmpCalibrated = true;
 
     // run hw polling on core1
     multicore_launch_core1(hw_loop);
@@ -452,6 +473,8 @@ static void mqtt_loop()
         // loop logic to keep from getting too tight
         else
             x = 0;
+          //          pwm_set_gpio_level(DRIVE_B, 65535);
+
     }
 
 }
@@ -479,7 +502,7 @@ static void hw_loop()
 
         if (yaw != last_yaw && isData)
         {
-            dist = fabs(yaw - last_yaw);
+            dist = fabs(fabs(yaw) - fabs(last_yaw));
             if (dist < SETTLE_THRESH)
                 break;
             last_yaw = yaw;
@@ -504,7 +527,7 @@ static void hw_loop()
 
 
     u16_t temp = 0;
-    float local_yaw,f16_l_yaw;
+    float abs_y,abs_ry;
 
     
 
@@ -512,7 +535,6 @@ static void hw_loop()
 
         poll_imu();
         imu_buf_flag = 1;
-        f16_l_yaw = yaw/EULER_NORM;
 
         
 
@@ -523,7 +545,7 @@ static void hw_loop()
              for (int i = 0; i < IMU_PARAM_COUNT; i+=2)
         {
             //convert normalized floats to half float in u16 format
-            temp = f16_l_yaw < 1 ? (s16_t)((((float)f16_l_yaw)) * 32767) : -1;
+            temp = half_float(yaw/EULER_NORM);
             imu_buf[i + 3] = (temp >> 8) & 0xff;
             imu_buf[i + 4] = temp & 0xff;
         }
@@ -531,16 +553,63 @@ static void hw_loop()
         if (prop_steer)
         {
 
-            dist = fabs(yaw - ref_yaw);
+            abs_y = fabs(yaw);
+            abs_ry = fabs(ref_yaw);
+
+            dist = fabs((abs_y > 90 || abs_ry > 90) ? ((abs_ry > 90 && abs_y > 90) ? ((yaw * ref_yaw > 0) ? abs_y - 180 - (abs_ry - 180) : abs_y - 180 + abs_ry - 180) : ((yaw * ref_yaw > 0) ? abs_y - abs_ry : abs_ry + abs_y)) : yaw - ref_yaw);
+
+            /*        if ((abs_y > 90 || abs_ry > 90)) {
+               if (abs_ry > 90 && abs_y > 90) {
+                   if (yaw * ref_yaw > 0) {
+                       dist = abs_y - 180 - (abs_ry - 180);
+                       printf("Case 1: yaw * ref_yaw > 0\n");
+                   } else {
+                       dist = abs_y - 180 + abs_ry - 180;
+                       printf("Case 2: yaw * ref_yaw <= 0\n");
+                   }
+               } else {
+                   if (yaw * ref_yaw > 0) {
+                       dist = abs_y - abs_ry;
+                       printf("Case 3: yaw * ref_yaw > 0\n");
+                   } else {
+                       dist = abs_ry + abs_y;
+                       printf("Case 4: yaw * ref_yaw <= 0\n");
+                   }
+               }
+
+           } else {
+               dist = yaw - ref_yaw;
+               printf("Case 5: fabs((abs_y > 90 || abs_ry > 90)) is false\n");
+           }*/
+
+
             rot_amt = clamp(clamp(dist, 30) * Kp, 65535);
 
-            if (yaw < ref_yaw)
-                pwm_set_gpio_level(ref_yaw < 0 ? (last_y < 0 ? STEER_B : STEER_A) : STEER_B, rot_amt);
-            else
-                pwm_set_gpio_level(ref_yaw > 0 ? (last_y > 0 ? STEER_B : STEER_A) : STEER_B, rot_amt);
+            pwm_set_gpio_level(yaw < ref_yaw ? (last_y < 0 ? STEER_B : STEER_A) : (last_y < 0 ? STEER_A : STEER_B), rot_amt);
+
+            /*
+                        if (ref_yaw < 0) {
+                            if (yaw < ref_yaw) {
+                            pwm_set_gpio_level(STEER_B, rot_amt);
+
+                            }
+                        else {
+                            pwm_set_gpio_level(STEER_A, rot_amt);
+
+                        }
+                        } else  {
+                            if (yaw < ref_yaw) {
+                                                pwm_set_gpio_level(STEER_B, rot_amt);
+
+                            }
+                            else
+                                                pwm_set_gpio_level(STEER_A, rot_amt);
+                        }
+            */
+
+            //   printf("%.2f\t%.2f\t%.2f\n",dist,ref_yaw,yaw);
         }
     }
-
 }
 
   /*  for (;;)
