@@ -170,7 +170,7 @@ def transmit_sequence(sequence):
         print("Sending sequence of length",sequence['len'],"...")
         parser.timekeep_start("Sequence transmission")
         for command in sequence['commands']:
-            client.publish(rc.SCRIPT_TOPIC,command)
+            client.publish(rc.SCRIPT_TOPIC,command,qos=2)
             time.sleep(1/240)
         if(script_timeout(1,True)):
             return 1
@@ -193,7 +193,7 @@ def transmit_sequence(sequence):
                 one_cmd_buf = [rc.compileCommand(command[0],rc.SCRIPT_OP,(rc.SCRIPT_INCOMING<<8)|1,4),command,rc.compileCommand(command[0],rc.SCRIPT_OP,(rc.SCRIPT_END<<8)|1,4)]
                 for cmd in one_cmd_buf:
                     #print("OUT      ",cmd)
-                    client.publish(rc.SCRIPT_TOPIC,cmd)
+                    client.publish(rc.SCRIPT_TOPIC,cmd,qos=2)
                     time.sleep(1/240)
                 if(script_timeout(1,False)):
                     return 1 
@@ -403,7 +403,7 @@ def on_message(client, userdata, msg):
                
 ############# CODE BEGIN ##############
 
-client = mqtt.Client("/rc_ctrl/")
+client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION1,client_id = "/rc_ctrl/")
 
 # setup callbacks
 client.on_connect = on_connect

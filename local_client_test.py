@@ -39,6 +39,7 @@ def connect():
     client.connect(broker, port)
 
     client.subscribe(rc.CTRL_TOPIC) # subscribe to all topics under '/rc_ctrl/'
+
     client.loop_start()
 
 
@@ -137,6 +138,8 @@ def on_message(client, userdata, msg):
                 elif(msg.payload[1]&0xff == rc.PARAMS_OP and assigned):
                     if(msg.payload[2] == rc.YAW):
                         client.publish(rc.RC_TOPIC,rc.compileCommand(int(client_id),rc.PARAMS_OP,(rc.YAW<<16)|1,5))
+                   # elif(msg.payload[2] == rc.ULT_DIST):
+                        client.publish(rc.RC_TOPIC,rc.compileCommand(int(client_id),rc.PARAMS_OP,(rc.ULT_DIST<<16)|1,5))
 
         
 
@@ -188,7 +191,7 @@ synched = 0
 operations = 0
 cmd_buf = []
 
-client = mqtt.Client(client_id)
+client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION1,client_id = client_id)
 client.on_connect = on_connect
 client.on_message = on_message
 connect()
@@ -207,7 +210,7 @@ while(True):
         client.loop_stop()
         client.disconnect()
         
-        client = mqtt.Client(str(assign_data&0x7f))
+        client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION1,client_id = str(assign_data&0x7f))
         client.on_connect = on_connect
         client.on_message = on_message
         assigned = True

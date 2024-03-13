@@ -479,7 +479,10 @@ def on_message(client, userdata, msg):
             param_buf.append({"yaw_data":[client_id,rc.from_16_float(((msg.payload[3] << 8) | (msg.payload[4])))]})
         elif(msg.payload[2] == rc.INIT_IMU):
             logText(rc.Colors.CYAN + f" client {client_id}'s IMU is active",rc.Colors.RESET)
-            
+        elif(msg.payload[2] == rc.ULT_DIST):
+            param_buf.append({"ult_data":[client_id,rc.from_16_float(((msg.payload[3] << 8) | (msg.payload[4])))]})
+        elif(msg.payload[2] == rc.ULT_FLAG):
+            logText("FLAG!")           
     
     # sequence begin logic    
     #print(script_active,sequence_active,recv_ack_count)
@@ -541,7 +544,7 @@ def set_ctrl_mode(mode):
 # init HID listener
 controller.init()
 
-client = mqtt.Client("/rc_ctrl/")
+client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION1,client_id = "/rc_ctrl/")
 
 # setup callbacks
 client.on_connect = on_connect
@@ -600,7 +603,10 @@ def polling_loop():
             gui_instance.client_update_signal.emit([],[],[],param_buf,False)
             param_buf = []
             client.publish(rc.ACTION_TOPIC,rc.compileCommand(0xff,rc.PARAMS_OP,rc.YAW,3))
+            
+
             param_delay.delay_ms(66)
+            #client.publish(rc.ACTION_TOPIC,rc.compileCommand(0xff,rc.PARAMS_OP,rc.ULT_DIST,3))
 
 
 

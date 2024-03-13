@@ -17,21 +17,25 @@ PRINT_OP        =  0xe
 ASSIGN_OP       =  0x1a
 PARAMS_OP       =  0x1f
 
-# request codes
+# status request codes
 RSSI_REQ        =  0x21
+ULT_DIST        =  0x2
+ULT_FLAG        =  0x3
 YAW             =  0x0
 INIT_IMU        =  0x1
 
 
 
-#byte 2
+# byte 2
 SCRIPT_INCOMING  = 0x1
 SCRIPT_BEGIN     = 0xd
-SCRIPT_END       = 0x4                 # byte 1 client-side
-SCRIPT_RECEIVED  = (0x6 << 4) | 0x4    # byte 2 client-sides
+SCRIPT_END       = 0x4                 
+SCRIPT_RECEIVED  = (0x6 << 4) | 0x4    
 SYNC_STATUS      = 0x2
 
 MATLAB_FLAG      = 0x40
+
+# enquiry
 
 ACK              = 0x6
 ENQ              = 0x5

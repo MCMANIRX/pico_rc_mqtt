@@ -21,7 +21,7 @@ sync{
 
 # this code does not run until the sync block is complete 
 
-echo("i need to graduate!")
+echo("i want to graduate!")
 ymove(0,f,1,1000)
 wait(1000)
 ymove(0,f,50,20)

@@ -25,7 +25,7 @@ class Client():
         self.id = id
         old_id = self.id
         self.data.setColumnCount(2)
-        self.data.setRowCount(2)
+        self.data.setRowCount(3)
         self.data.setHorizontalHeaderLabels(['Client', str(id)])    
           
         
@@ -67,7 +67,12 @@ class Client():
         self.data.setItem(1, 0, label)
         self.data.setItem(1, 1, value)
             
+    def update_ult(self,val):
+        label = QTableWidgetItem("Ult")
+        value = QTableWidgetItem(str(round(val*300.0,4)))
             
+        self.data.setItem(2, 0, label)
+        self.data.setItem(2, 1, value)            
                 
     def update_values(self,keys_values):
     
@@ -276,10 +281,14 @@ class CtrlClientGUI(QMainWindow):
                         client.update_rssi(rssi_datum['rssi_data'][1])
         else:
             for yaw in yaw_values:
-                for client in self.clients:
-                    if client.id == yaw['yaw_data'][0]:
-                        client.update_yaw(yaw['yaw_data'][1])         
-                          
+                for client in self.clients:   
+                    first_key = next(iter(yaw.keys()))
+                    if client.id == next(iter(yaw.values()))[0]:
+                        if first_key == 'yaw_data':
+                            client.update_yaw(yaw['yaw_data'][1])   
+                        elif first_key == 'ult_data':
+                            client.update_ult(yaw['ult_data'][1])   
+
 
         if(change):
             self.v3.addStretch()
