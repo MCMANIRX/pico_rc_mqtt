@@ -6,6 +6,8 @@ import matplotlib.pyplot as mpl
 import sys
 import paho.mqtt.client as mqtt 
 import rc_config as rc
+import ml_module
+import requests
 
 
 
@@ -21,9 +23,6 @@ columns = []
 gray = []
 max_idx = 0
 
-def printf(format, *args):
-    sys.stdout.write(format % args)
-
 
 def log(image,clr,color,off):
 	font = cv2.FONT_HERSHEY_SIMPLEX
@@ -36,42 +35,46 @@ def log(image,clr,color,off):
 
 def parse_image():
     global image,columns,gray,img_list,max_idx,obj
-
-    h = round(image.shape[0]/4)
-    w = image.shape[1]
-    x=0
-    y=h
     
-    image = image[y:y+h*2, x:x+w] #crop
+    disp_image = image
     
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    ret, gray = cv2.threshold(gray,50,255,cv2.THRESH_TOZERO)
-    
-
-
     img_list =[]
     columns = []
-    interval = SLICES
-
-    xinterval  = (int)(w/interval)
-    x_l = 0
-    x_r = xinterval
-    
-    for x in range(interval):
+    if(obj):
+        image = cv2.resize(image, (160,120))
+        h = round(image.shape[0]/4)
+        w = image.shape[1]
+        x=0
+        y=h
         
-        img_list.append(np.sum(gray[0:h,x_l:x_r]))
-        columns.append(x_l)
+        image = image[y:y+h*2, x:x+w] #crop
+        
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        ret, gray = cv2.threshold(gray,50,255,cv2.THRESH_TOZERO)
+        
 
-        x_l = x_r
-        x_r+=xinterval
-    
-    max_idx = idx = img_list.index(max(img_list))
-    if obj:
-        image = cv2.rectangle(image,(max_idx*xinterval,int(h/4),xinterval,h),(0,255,0),2)
-    else:
-        image = cv2.rectangle(image,(max_idx*xinterval,int(h/4),xinterval,h),(255,0,0),2)
 
-    cv2.imshow("debug",cv2.resize(image, (800,600)))
+        interval = SLICES
+
+        xinterval  = (int)(w/interval)
+        x_l = 0
+        x_r = xinterval
+        
+        for x in range(interval):
+            
+            img_list.append(np.sum(gray[0:h,x_l:x_r]))
+            columns.append(x_l)
+
+            x_l = x_r
+            x_r+=xinterval
+        
+        max_idx = idx = img_list.index(max(img_list))
+        if obj:
+            disp_image = cv2.rectangle(disp_image,(max_idx*xinterval,int(h/4),xinterval,h),(0,255,0),2)
+        else:
+            disp_image = cv2.rectangle(disp_image,(max_idx*xinterval,int(h/4),xinterval,h),(255,0,0),2)
+
+    cv2.imshow("debug",cv2.resize(disp_image, (800,600)))
     
 
     
@@ -126,25 +129,36 @@ def on_message(client,userdata,msg):
             client.publish(rc.ACTION_TOPIC,rc.compileCommand(0,rc.CAM_OP,rc.to_8_signed(target_slice),3))
         else:
             obj = False
+            
+def connect():
+    client.connect(broker, port)
+    client.subscribe(rc.RC_TOPIC)
+    client.loop_start() 
+    
+       
+def set_resolution(url: str, index: int=1, verbose: bool=False):
+    try:
+        if verbose:
+            resolutions = "10: UXGA(1600x1200)\n9: SXGA(1280x1024)\n8: XGA(1024x768)\n7: SVGA(800x600)\n6: VGA(640x480)\n5: CIF(400x296)\n4: QVGA(320x240)\n3: HQVGA(240x176)\n0: QQVGA(160x120)"
+            print("available resolutions\n{}".format(resolutions))
+
+        if index in [10, 9, 8, 7, 6, 5, 4, 3, 0]:
+            requests.get(url + "/control?var=framesize&val={}".format(index))
+        else:
+            print("Wrong index")
+    except:
+        print("SET_RESOLUTION: something went wrong")
     
     
-    
-#cap = cv2.VideoCapture('test2.MOV')
-#cap=cv2.VideoCapture(0)
-URL = "http://192.168.1.138"
+URL = "http://192.168.1.139"
 AWB = True
+SVGA = 7
+set_resolution(URL,SVGA,verbose=False) # set to SVGA (800x600) for best quality + latency
+
+#cap=cv2.VideoCapture(0)
 cap = cv2.VideoCapture(URL + ":81/stream")
 obj = False
 
-
-def connect():
-    client.connect(broker, port)
-
-    client.subscribe(rc.RC_TOPIC)
- # subscribe to all topics under '/rc_ctrl/'
-
-    client.loop_start()
-    
 
 client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION1,client_id = "cam_parse")
 client.on_connect = on_connect
@@ -156,7 +170,8 @@ debug = False
 
 while(cap.isOpened()):
     ret, image = cap.read()
-    image = cv2.resize(image, (320,240))
+    image = ml_module.look_at_frame(image)
+
     parse_image()
 
 
