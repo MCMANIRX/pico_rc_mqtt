@@ -16,6 +16,12 @@ YMOVE_OP        =  0x4
 PRINT_OP        =  0xe
 ASSIGN_OP       =  0x1a
 PARAMS_OP       =  0x1f
+CAM_OP          =  0x20
+
+CAM_EVADE       = 0x0
+CAM_STOP_SIGN   = 0x1
+CAM_HARD_STOP   = 0x2
+
 
 # status request codes
 RSSI_REQ        =  0x21
@@ -23,7 +29,6 @@ ULT_DIST        =  0x2
 ULT_FLAG        =  0x3
 YAW             =  0x0
 INIT_IMU        =  0x1
-IMU_REHOME      =  0x4
 
 
 
@@ -56,7 +61,7 @@ def to_8_signed(x):
     if(x<0):
         return ((abs(x^0xff)&0xff)-1)&0xff
     else:
-        return ((abs(x)&0xff))&0xff
+        return ((int(abs(x))&0xff))&0xff
     
 def from_8_signed(x):
     x &=0xff
@@ -97,6 +102,7 @@ def compileCommand(id,operation,payload,len):
     id = int(id)
     operation = int(operation)
     payload = int(payload)
+   # print(payload)
     
     buf = 0
     
@@ -123,7 +129,6 @@ def compileCommand(id,operation,payload,len):
     CYAN = "\033[96m"
     WHITE = "\033[97m"'''
     
-from ansi2html import ansi2html
 class Colors:
     RESET = "\033[0m"
     BLACK = "\033[30m"

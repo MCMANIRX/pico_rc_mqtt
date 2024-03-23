@@ -21,6 +21,11 @@
 #define PARAMS_OP        0x1f // denotes sensor-data-related mesage
 #define CAM_OP           0x20
 
+
+#define CAM_EVADE        0x0
+#define CAM_STOP_SIGN    0x1
+#define CAM_HARD_STOP    0x2
+
 // request codes
 #define RSSI_REQ         0x21 // denotes RSSI-data-related message
 
@@ -40,6 +45,7 @@
 #define SPEED_MULT      512   // converts int8 to int16 for 16-bit PWM register
 #define STEER_MULT      1.15  // traction for different wheeled cars
 #define STEER_THRESH    30
+#define DRIVE_THRESH    10
 #define DRIVE_B         14    // b
 #define DRIVE_F         15    // f
 #define STEER_L         12    // l
@@ -60,6 +66,10 @@
 #define IMU_INIT        0x1    // tell ctrl_client car is ready to drive
 #define ULT_DIST        0x2
 #define ULT_FLAG        0x3
+#define IMU_REHOME      0x4
+
+
+#define ULT_THRESH      80
 
 #define TRIGGER_GPIO    3
 #define ECHO_GPIO       2

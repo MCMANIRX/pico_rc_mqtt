@@ -92,7 +92,7 @@ class CtrlClientGUI(QMainWindow):
     ctrl_modes = ["Joystick","Trigger"]
     ctrl_mode_index = 0
 
-    v1_buttons = ["Tune Controller","Switch Control Mode","Reassign IDs", "Run Script","Clear Log"] #Get RSSIs removed
+    v1_buttons = ["Tune Controller","Switch Control Mode","Re-home IMUs", "Run Script","Clear Log"] #Get RSSIs removed
     v1_radios  = ["Auto-Reassign"]
     menu_options = ["New Script","Open Script","Save Script","Run Script"]
   
@@ -100,6 +100,7 @@ class CtrlClientGUI(QMainWindow):
     client_update_signal = pyqtSignal(list,list,list,list,bool)
     ext_logText_signal   = pyqtSignal(str)
     run_script_signal    = pyqtSignal()
+
     filePath = ""
     
     auto_rename = False
@@ -193,6 +194,10 @@ class CtrlClientGUI(QMainWindow):
 
             
             cc.set_ctrl_mode(self.ctrl_mode_index)
+        
+        # rehome 
+        elif arg == self.v1_buttons[2]:
+            cc.rehome()
 
                             
         # run script

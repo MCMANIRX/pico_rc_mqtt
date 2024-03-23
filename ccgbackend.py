@@ -537,7 +537,8 @@ def set_ctrl_mode(mode):
     
     ctrl_mode = mode
 
-       
+def rehome():
+    client.publish(rc.ACTION_TOPIC,rc.compileCommand(0xff,rc.PARAMS_OP,rc.IMU_REHOME,3))      
     
 ############# CODE BEGIN ##############
 

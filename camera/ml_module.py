@@ -11,6 +11,7 @@ FONT_SIZE = 1
 FONT_THICKNESS = 1
 TEXT_COLOR = (255, 0, 0)  # red
 
+
 ObjectDetector = mp.tasks.vision.ObjectDetector
 ObjectDetectorOptions = mp.tasks.vision.ObjectDetectorOptions
 VisionRunningMode = mp.tasks.vision.RunningMode
@@ -28,10 +29,14 @@ def visualize(
     detection_result: The list of all "Detection" entities to be visualize.
   Returns:
     Image with bounding boxes.
-  """
+  """    
+  stop_sign = False
+
   for detection in detection_result.detections:
     # Draw bounding_box
     if detection.categories[0].category_name == 'stop sign':
+      stop_sign = True
+
       bbox = detection.bounding_box
       start_point = bbox.origin_x, bbox.origin_y
       end_point = bbox.origin_x + bbox.width, bbox.origin_y + bbox.height
@@ -47,7 +52,7 @@ def visualize(
       cv2.putText(image, result_text, text_location, cv2.FONT_HERSHEY_PLAIN,
                   FONT_SIZE, TEXT_COLOR, FONT_THICKNESS)
 
-  return image
+  return image,stop_sign
 
 
 # STEP 2: Create an ObjectDetector object.
@@ -67,13 +72,13 @@ def _look_at_frame(frame):
   
   detection_result = detector.detect(mp_image)
   #print(detection_result)
-  
+  stop_sign = False
   image_copy = frame
   if(detection_result!=None and hasattr(detection_result,'detections')): # 'None' test
-      annotated_image = visualize(image_copy, detection_result)
+      annotated_image,stop_sign = visualize(image_copy, detection_result)
   else: annotated_image = image_copy
   rgb_annotated_image = annotated_image
-  return rgb_annotated_image
+  return rgb_annotated_image,stop_sign
 
 def look_at_frame(frame):
   #with vision.ObjectDetector.create_from_options(options) as detector:

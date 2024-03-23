@@ -31,7 +31,7 @@ function init_mqtt()
     global client
     client =  mqttclient(addr, Port = port);
     
-    %subscribe(client,RC_TOPIC,Callback=@echo_)
+    subscribe(client,RC_TOPIC,Callback=@echo_)
     
 
     % Create a timer object

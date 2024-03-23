@@ -23,14 +23,33 @@
 #include "inc/ultra/util/smooth_average.h"
 #include "inc/ultra/util/nbt.h"
 
-    non_blocking_timer timer0;
-    non_blocking_timer timer1;
+#define IMU MPU
 
-    smooth_average smooth; //= malloc(sizeof(smooth_average));
+
+
+#if IMU == MPU
+    #include "inc/imu/mpu6050_DMP_port.h"
+#elif IMU == BNO
+    #include "inc/bno_pico/bno_controller.h"
+#endif
+
+non_blocking_timer timer0;
+non_blocking_timer timer1;
+non_blocking_timer timer2;
+non_blocking_timer timer4;
+
+smooth_average smooth; //= malloc(sizeof(smooth_average));
 
 volatile bool _run_script;
 volatile bool core_1_running;
 volatile bool core_1_watchdog;
+
+bool stop_sign;
+bool saw_stop_sign;
+bool stop_sign_timer_began;
+
+bool hard_stop;
+bool hard_stopped;
 
 u16_t drive_slice;
 u16_t steer_slice;
@@ -54,15 +73,19 @@ u8_t ult_buf_flag;
 u8_t imu_buf[IMU_BUF_LEN];
 u8_t imu_buf_flag;
 
+float imu_offset;
+
+
 
 s8_t last_x,last_y;
 
 float ult_dist = 0;
 
 
-volatile bool dmpCalibrated;
+volatile bool imu_calibrated;
 volatile bool prop_steer;
 float ref_yaw;
+float effective_yaw;
 float dist;
 u32_t rot_amt;
 
@@ -74,7 +97,8 @@ extern void init_imu();
 alarm_id_t failsafe;
 alarm_id_t waiter;
 
-
+void stop_sign_routine();
+void set_imu_offset();
 
 u16_t half_float(float x) {
 
@@ -115,37 +139,48 @@ char wheel[] = {'-', '\\', '|', '/'};
 
 void wait(int time)
 {
-
-    if(waiting)
-        cancel_alarm(waiter);
-
+    
+    //if(waiting)
+        //cancel_alarm(waiter);
+    start_timer(&timer4,time);
     waiting = true;
-    waiter = add_alarm_in_ms(time, wait_cb, NULL, false);
+    //waiter = add_alarm_in_ms(time, wait_cb, NULL, false);
     printf("start wait %d\n", time);
 
     int x = 0;
     while (waiting)
-    {
+    {   
+        
+    watchdog_update();
+    if(timer_expired(&timer4))
+        break;
+
         putchar(wheel[x++]);
         putchar('\r');
         if (x == 3)
             x = 0;
     }
+    waiting = false;
 }
 
 void move_motors(s8_t x, s8_t y)
 {
-    if(!dmpCalibrated)
-        return;
+   /* if(!imu_calibrated)
+        return;*/
 
     // make steering a little bit better
     if(!script_active)
         x = clamp8(x*STEER_MULT,127);
 
+    if(saw_stop_sign && y < 0 && !stop_sign_timer_began){
+        start_timer(&timer2,2000); 
+        stop_sign_timer_began = true;
+    }
+
     last_x = x;
     last_y = y;
 
-    if (y < 0)
+    if (y < 0 && !hard_stopped)
     {
      //   pwm_set_gpio_level(DRIVE_F, abs(127 * SPEED_MULT)); 
 
@@ -165,7 +200,7 @@ void move_motors(s8_t x, s8_t y)
         pwm_set_gpio_level(DRIVE_F, 0);
     }
 
-    else if (abs(y) < 10)
+    else if (abs(y) < DRIVE_THRESH)
     {
        // printf("y\t%d\n",abs(y));
         pwm_set_gpio_level(DRIVE_F, 0);
@@ -197,7 +232,7 @@ void move_motors(s8_t x, s8_t y)
 
             }
         }
-    else if(abs(y)>10){
+    else if(abs(y)>DRIVE_THRESH && imu_calibrated && !prop_steer){
         prop_steer = true;
         ref_yaw = yaw;
     }
@@ -208,16 +243,50 @@ void move_motors(s8_t x, s8_t y)
     pwm_set_gpio_level(STEER_L, 0);
     pwm_set_gpio_level(STEER_R, 0);
 
-     //   gpio_put(STEER_R, 0);
-     //   gpio_put(STEER_L, 0);
     }
+}
+
+
+void _hard_stop(int time) {
+    gpio_put(ULT_LED_PIN,1);
+    pwm_set_gpio_level(DRIVE_B,100);
+    wait(40);
+    pwm_set_gpio_level(DRIVE_F,0);
+    wait(time);
+    pwm_set_gpio_level(DRIVE_B,0);
+    gpio_put(ULT_LED_PIN,0);
+
+}
+
+void stop_sign_routine(){
+            script_active = true;
+            stop_sign_timer_began = false;
+            _hard_stop(2000);
+            stop_sign = false;
+            saw_stop_sign = true;
+            script_active = false;
+
+
+}
+
+void hard_stop_routine(){
+            if(hard_stopped)return;
+            script_active = true;
+            _hard_stop(1000);
+            hard_stopped = true;
+            hard_stop = false;
+            script_active = false;
+
 }
 
 int failsafe_cb() {
             if(script_active)return;
 
     move_motors(0,0);   
-    printf("will");
+    printf("failsafe!");
+    watchdog_enable(1,true);
+    while(1);
+
 
     return 0;
 
@@ -301,7 +370,7 @@ void message_decoder(char *topic, char *data)
     else if (data[0] == 0xff)
         all = true;
 
-    //printf("%s %x %x %x %x %x %x \n",topic,data[0], data[1], data[2], data[3], data[4], data[5]);
+    printf("%s %x %x %x %x %x %x \n",topic,data[0], data[1], data[2], data[3], data[4], data[5]);
 
 
     // enquire logic
@@ -343,24 +412,39 @@ void message_decoder(char *topic, char *data)
                 publish_with_strlen_qos0(RC_TOPIC, ult_buf, ULT_BUF_LEN);
 
         }
+        else if (data[2] == IMU_REHOME){
+            if(imu_calibrated) {
+                set_imu_offset();
+            }
+          //  printf("%.2f\t",yaw);
+         //   printf("%.2f\t%.2f\n",imu_offset,yaw);
+        }
+
     }
     else if(data[1] == CAM_OP) {
-        if(last_y!=0 && last_y<0){
-        u16_t _rot_amt = clamp(abs(data[2]) * 13000,65535);
-        pwm_set_gpio_level(((s8_t)data[2])<0?STEER_L:STEER_R, _rot_amt);
-        pwm_set_gpio_level(((s8_t)data[2])<0?STEER_R:STEER_L, 0);
+        if(data[2] == CAM_EVADE){
+            if(last_y!=0 && last_y<0){
+            u16_t _rot_amt = clamp(abs(data[3]) * 13000,65535);
+            pwm_set_gpio_level(((s8_t)data[3])<0?STEER_L:STEER_R, _rot_amt);
+            pwm_set_gpio_level(((s8_t)data[3])<0?STEER_R:STEER_L, 0);
+            //blink(10,100);
 
-        printf("rot!%d\tamt %d\n",_rot_amt,(s8_t)data[2]);
+            printf("rot!%d\tamt %d\n",_rot_amt,(s8_t)data[3]);
+            }
+            else {
+                    pwm_set_gpio_level(STEER_L, 0);
+                    pwm_set_gpio_level(STEER_R, 0);
+
+            }
         }
-        else {
-                pwm_set_gpio_level(STEER_L, 0);
-                pwm_set_gpio_level(STEER_R, 0);
+        else if(data[2] == CAM_STOP_SIGN) 
+            stop_sign = true;
+        
 
-        }
-
-        }
-
-
+        
+        else if(data[2] == CAM_HARD_STOP)
+            hard_stop = true;
+}
 
     // assign logic
     else if (*(topic + 10) == 's')
@@ -454,14 +538,20 @@ int main()
     script_active = false;
 
     /* steer init */
-    dmpCalibrated = false;
+    imu_calibrated = false;
     prop_steer = false;
     ref_yaw = 0;
+    effective_yaw  =0;
     last_x = 0;
     last_y = 0;
 
-    core_1_running = false;
+    core_1_running  = false;
     core_1_watchdog = false;
+    stop_sign       = false;
+    saw_stop_sign   = false;
+    stop_sign_timer_began = false;
+    hard_stop       = false;
+    hard_stopped    = false;
 
     /* PWM init */
     gpio_set_function(DRIVE_B, GPIO_FUNC_PWM);
@@ -509,11 +599,10 @@ int main()
     imu_buf[1] = PARAMS_OP;
     ult_buf[1] = PARAMS_OP;
 
-  //  dmpCalibrated = true;
+  //  imu_calibrated = true;
 
     // run hw polling on core1
     multicore_launch_core1(hw_loop);
-    start_timer(&timer1,30000);
 
     // continue main mqtt logic on core0
     mqtt_loop();
@@ -524,7 +613,7 @@ int main()
 }
 
 static void mqtt_loop()
-{
+{   
     watchdog_enable(3000,true);
     watchdog_start_tick(12);
     while (1)
@@ -547,7 +636,6 @@ static void mqtt_loop()
                 ack[1] = SCRIPT_END;
                 publish_with_strlen(RC_TOPIC, ack, 2); // strlen is null-terminated so extra fcn in case the id is 0
                 script_active = false;
-                
                 pwm_set_gpio_level(STEER_L,0);
                 pwm_set_gpio_level(STEER_R,0);
                 pwm_set_gpio_level(DRIVE_F,0);
@@ -559,29 +647,41 @@ static void mqtt_loop()
           //          pwm_set_gpio_level(DRIVE_F, 65535);
     }
 
-    if(timer_expired(&timer1))
-        if(core_1_running){
-            if(!core_1_watchdog){
+    if(stop_sign && !saw_stop_sign)
+        stop_sign_routine();
+    
+    if(hard_stop && !hard_stopped)
+        hard_stop_routine();
+
+    if (timer_expired(&timer1)){
+
+            if (!core_1_watchdog)
+            {
                 printf("reset core 1!\n");
-                core_1_running = false;
-                core_1_watchdog = false;
+                pwm_set_gpio_level(DRIVE_B, 0);
+                pwm_set_gpio_level(DRIVE_F, 0);
+                imu_calibrated = false;
+                gpio_put(ULT_LED_PIN, 1);
                 multicore_reset_core1();
                 multicore_launch_core1(hw_loop);
-            } else start_timer(&timer1,1000);
+            }
+            else{
+            }
+            start_timer(&timer1, 1000);
             core_1_watchdog = false;
+        }
 
+    if(timer_expired(&timer2) && stop_sign_timer_began){
+        saw_stop_sign = false;
     }
-
-
 }
 }
 
 // I2C reading for async IMU data buffer updates
 
 static void hw_loop()
-{
-
-
+{   
+    core_1_watchdog = true;
 
 
     hcsr04_init(TRIGGER_GPIO, ECHO_GPIO);
@@ -594,6 +694,8 @@ static void hw_loop()
     /* calibrate IMU */
     init_imu();
     while(!isData) {
+        core_1_watchdog = true;
+
         poll_imu();
         ref_yaw = 0;
     }
@@ -601,9 +703,14 @@ static void hw_loop()
 
 
     float last_yaw  = -360;
+    imu_offset = 0;
 
     while (1)
-    {
+    {   
+        core_1_watchdog = true;
+
+
+
         poll_imu();
         printf("%f\t%f\t%f\n", yaw, last_yaw, dist);
 
@@ -617,15 +724,17 @@ static void hw_loop()
         }
     }
     ///////////////////////////////////////////
-
+    set_imu_offset(); 
+    effective_yaw = yaw+imu_offset;
     ref_yaw = yaw;
     rot_amt = 0;
 
     printf("IMU Calibrated!\nreference yaw is %.2f\n",ref_yaw);
     blink(2,100);
-    dmpCalibrated = true;
+    imu_calibrated = true;
     core_1_watchdog = true;
-    core_1_running = true;
+
+
     while(!assign);
 
     imu_buf[2] = IMU_INIT;
@@ -634,6 +743,7 @@ static void hw_loop()
     ult_buf[2] = ULT_DIST;
     imu_buf[2] = YAW;
 
+    gpio_put(ULT_LED_PIN,0);
 
 
     u16_t temp = 0;
@@ -643,10 +753,14 @@ static void hw_loop()
     start_timer(&timer1,1000);
 
     while(1) {
-        watchdog_update();
+        //watchdog_update();
         core_1_watchdog = true;
 
+
         poll_imu();
+        //printf("%.2f\t",yaw);
+        effective_yaw = yaw+imu_offset;
+       // printf("%.2f\t%.2f\n",imu_offset,effective_yaw);
         imu_buf_flag = 1;
 
         
@@ -658,17 +772,16 @@ static void hw_loop()
              for (int i = 0; i < IMU_PARAM_COUNT; i+=2)
         {
             //convert normalized floats to half float in u16 format
-            temp = half_float(yaw/EULER_NORM);
+            temp = half_float(effective_yaw/EULER_NORM);
             imu_buf[i + 3] = (temp >> 8) & 0xff;
             imu_buf[i + 4] = temp & 0xff;
         }
 
-        if (prop_steer)
+        if (prop_steer && imu_calibrated)
         {
-
+            
             abs_y = fabs(yaw+180);
             abs_ry = fabs(ref_yaw+180);
-
 
 
 
@@ -676,7 +789,7 @@ static void hw_loop()
 
             rot_amt = clamp(clamp(dist, 30) * Kp, 65535);
 
-            int pin = (dist < 180) ? (yaw > ref_yaw ? STEER_L : STEER_R) :  (last_y < 0 ? (yaw > ref_yaw ? STEER_R : STEER_L) :  (last_y > 0 ? STEER_L : STEER_R));
+            int pin = (dist < 180) ? (last_y < 0 ? (yaw > ref_yaw ? STEER_L : STEER_R) :  (yaw > ref_yaw ? STEER_R : STEER_L)) : (last_y < 0 ? (yaw > ref_yaw ? STEER_R : STEER_L) :  (yaw > ref_yaw ? STEER_L : STEER_R));
 
             pwm_set_gpio_level(pin,rot_amt);
 
@@ -723,7 +836,7 @@ static void hw_loop()
         }
 
 
-        if(ult_dist < 80) {
+        if(ult_dist < ULT_THRESH) {
          //       gpio_put(ULT_LED_PIN,1);
                 ult_buf[5] = 1;
                 obj_flag = true;
@@ -734,11 +847,20 @@ static void hw_loop()
             ult_buf[5] = 0;
             obj_flag = false;
 
+            if(hard_stopped)
+                hard_stopped = false;
+
 
         }
 
 
     }
+}
+
+
+void set_imu_offset() {
+   imu_offset = -yaw ;
+
 }
 
 
