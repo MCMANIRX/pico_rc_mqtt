@@ -6,22 +6,24 @@
 *
 */
 
+#include <math.h>
 
+#include "pico/multicore.h"
 #include "pico/stdlib.h"
 #include "pico/cyw43_arch.h"
+
 #include "lwip/apps/mqtt.h"
+
 #include "hardware/pwm.h"
 #include "hardware/vreg.h"
 #include "hardware/watchdog.h"
 
 #include "mqtt_helper.h"
-#include "pico/multicore.h"
-#include <math.h>
 
-#include "inc/imu/mpu6050_DMP_port.h"
 #include "inc/ultra/hcsr04.h"
 #include "inc/ultra/util/smooth_average.h"
 #include "inc/ultra/util/nbt.h"
+#include "inc/adc/battery_monitor.h"
 
 #define IMU MPU
 
@@ -37,6 +39,8 @@ non_blocking_timer timer0;
 non_blocking_timer timer1;
 non_blocking_timer timer2;
 non_blocking_timer timer4;
+non_blocking_timer timer5;
+
 
 smooth_average smooth; //= malloc(sizeof(smooth_average));
 
@@ -70,6 +74,9 @@ bool obj_flag;
 u8_t ult_buf[ULT_BUF_LEN];
 u8_t ult_buf_flag;
 
+u8_t bat_buf[BAT_BUF_LEN];
+u8_t bat_buf_flag;
+
 u8_t imu_buf[IMU_BUF_LEN];
 u8_t imu_buf_flag;
 
@@ -80,6 +87,7 @@ float imu_offset;
 s8_t last_x,last_y;
 
 float ult_dist = 0;
+
 
 
 volatile bool imu_calibrated;
@@ -370,7 +378,7 @@ void message_decoder(char *topic, char *data)
     else if (data[0] == 0xff)
         all = true;
 
-    printf("%s %x %x %x %x %x %x \n",topic,data[0], data[1], data[2], data[3], data[4], data[5]);
+    //printf("%s %x %x %x %x %x %x \n",topic,data[0], data[1], data[2], data[3], data[4], data[5]);
 
 
     // enquire logic
@@ -407,9 +415,12 @@ void message_decoder(char *topic, char *data)
     if(data[1] == PARAMS_OP) {
 
         if(data[2] == YAW && imu_buf_flag-->0){
+            //imu_buf[3] = 0xaa;
             publish_with_strlen_qos0(RC_TOPIC, imu_buf, IMU_BUF_LEN);
-            if(ult_buf_flag-->0)
+            if(ult_buf_flag--==1)
                 publish_with_strlen_qos0(RC_TOPIC, ult_buf, ULT_BUF_LEN);
+            if(bat_buf_flag--==1)
+                publish_with_strlen_qos0(RC_TOPIC, bat_buf,BAT_BUF_LEN);
 
         }
         else if (data[2] == IMU_REHOME){
@@ -457,6 +468,8 @@ void message_decoder(char *topic, char *data)
             assign_data = data[2];
             imu_buf[0] = assign_data;
             ult_buf[0] = assign_data;
+            bat_buf[0] = assign_data;
+
             sprintf(id, "%d", assign_data);
             set_id_for_reconnect(id);
             connect(&id);
@@ -533,6 +546,11 @@ static void mqtt_loop();
 int main()
 {
 
+    // init IMU data transfer logic
+    imu_buf_flag = 0;
+    ult_buf_flag = 0;
+    bat_buf_flag = 0;
+
     /* script init */
     op_cnt = 0;
     script_active = false;
@@ -589,15 +607,16 @@ int main()
 
     mqtt_init("rc_unassigned");
 
+
+
     //set local message decoder callback
     set_message_decoder(&message_decoder);
 
-    // init IMU data transfer logic
-    imu_buf_flag = 0;
-    ult_buf_flag = 0;
+
 
     imu_buf[1] = PARAMS_OP;
     ult_buf[1] = PARAMS_OP;
+    bat_buf[1] = PARAMS_OP;
 
   //  imu_calibrated = true;
 
@@ -690,6 +709,9 @@ static void hw_loop()
     float _ult_dist = 0;
     ult_dist = 0;
 
+    battery_monitor_init();
+
+
 
     /* calibrate IMU */
     init_imu();
@@ -734,23 +756,32 @@ static void hw_loop()
     imu_calibrated = true;
     core_1_watchdog = true;
 
-
-    while(!assign);
+    while(!assign){
+        core_1_watchdog = true;
+        printf("peek!");
+    }
 
     imu_buf[2] = IMU_INIT;
 
     publish_with_strlen_qos0(RC_TOPIC,imu_buf,3);
     ult_buf[2] = ULT_DIST;
     imu_buf[2] = YAW;
-
+    bat_buf[2] = BAT;
+ 
     gpio_put(ULT_LED_PIN,0);
+
+    get_battery_percentage(&bat_buf[3]);
+    bat_buf_flag = 1;    
+
+
 
 
     u16_t temp = 0;
     float abs_y,abs_ry;
 
-    start_timer(&timer0,20);
+    start_timer(&timer0,5);
     start_timer(&timer1,1000);
+    start_timer(&timer5, 5 * 1000);
 
     while(1) {
         //watchdog_update();
@@ -803,7 +834,7 @@ static void hw_loop()
 
             //pwm_set_gpio_level(yaw < ref_yaw ? (last_y < 0 ? STEER_R : STEER_L) : (last_y < 0 ? STEER_L : STEER_R), rot_amt);
 
-            printf("%c\t%d\t%.2f\t%.2f\t%.2f\n",pin == STEER_L ? "l":"r",rot_amt,dist,ref_yaw,yaw);
+            //printf("%c\t%d\t%.2f\t%.2f\t%.2f\n",pin == STEER_L ? "l":"r",rot_amt,dist,ref_yaw,yaw);
         }
 
 
@@ -852,6 +883,14 @@ static void hw_loop()
 
 
         }
+
+
+        if(timer_expired(&timer5)){
+            get_battery_percentage(&bat_buf[3]);
+            bat_buf_flag = 1;
+            start_timer(&timer5,5* 1000);
+        }
+
 
 
     }

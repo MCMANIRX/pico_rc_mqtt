@@ -157,6 +157,7 @@ deadzone_y = rc.DEAD_ZONE
 
 # gui variables
 global gui_instance
+gui_instance = None
 
 #############################################
 
@@ -175,7 +176,8 @@ def logText(*args):
             txt += str(strng)
             
     global gui_instance
-    gui_instance.ext_logText_signal.emit(txt)  
+    if gui_instance is not None:
+        gui_instance.ext_logText_signal.emit(txt)  
     #gui_instance.log.insertHtml(rc.ansi2html(txt,palette='solarized'))
     #gui_instance.log.append('')  
     #scrollbar = gui_instance.log.verticalScrollBar()
@@ -481,8 +483,11 @@ def on_message(client, userdata, msg):
             logText(rc.Colors.CYAN + f" client {client_id}'s IMU is active",rc.Colors.RESET)
         elif(msg.payload[2] == rc.ULT_DIST):
             param_buf.append({"ult_data":[client_id,rc.from_16_float(((msg.payload[3] << 8) | (msg.payload[4])))]})
-        elif(msg.payload[2] == rc.ULT_FLAG):
-            logText("FLAG!")           
+        elif(msg.payload[2] == rc.BAT):
+            param_buf.append({"bat_data":[client_id,int(msg.payload[3])]})   
+        #elif(msg.payload[2] == rc.ULT_FLAG):
+        #    logText("FLAG!") 
+    
     
     # sequence begin logic    
     #print(script_active,sequence_active,recv_ack_count)
@@ -647,7 +652,7 @@ def polling_loop():
                 sendctrl(client,x,y,"joy")
                 gpd0.delay_ms(1000/60)
             
-            print(_x,_y,x,y)
+           #s print(_x,_y,x,y)
        
                 
             ###########################################

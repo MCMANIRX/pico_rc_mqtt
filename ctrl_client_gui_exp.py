@@ -25,7 +25,7 @@ class Client():
         self.id = id
         old_id = self.id
         self.data.setColumnCount(2)
-        self.data.setRowCount(3)
+        self.data.setRowCount(4)
         self.data.setHorizontalHeaderLabels(['Client', str(id)])    
           
         
@@ -72,7 +72,14 @@ class Client():
         value = QTableWidgetItem(str(round(val*300.0,4)))
             
         self.data.setItem(2, 0, label)
-        self.data.setItem(2, 1, value)            
+        self.data.setItem(2, 1, value) 
+        
+    def update_bat(self,val):
+        label = QTableWidgetItem("Bat")
+        value = QTableWidgetItem(str(val)+"%")
+            
+        self.data.setItem(3, 0, label)
+        self.data.setItem(3, 1, value)          
                 
     def update_values(self,keys_values):
     
@@ -250,6 +257,7 @@ class CtrlClientGUI(QMainWindow):
         
     # add and remove clients based on backend tracking
     def client_update(self,client_ids,rssi_values,client_and_id,yaw_values,pulse):
+
         
        # print(yaw_values)
         
@@ -292,7 +300,9 @@ class CtrlClientGUI(QMainWindow):
                         if first_key == 'yaw_data':
                             client.update_yaw(yaw['yaw_data'][1])   
                         elif first_key == 'ult_data':
-                            client.update_ult(yaw['ult_data'][1])   
+                            client.update_ult(yaw['ult_data'][1])
+                        elif first_key == 'bat_data':
+                            client.update_bat(yaw['bat_data'][1])
 
 
         if(change):

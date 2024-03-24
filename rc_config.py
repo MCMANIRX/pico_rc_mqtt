@@ -24,6 +24,7 @@ ULT_FLAG        =  0x3
 YAW             =  0x0
 INIT_IMU        =  0x1
 IMU_REHOME      =  0x4
+BAT             =  0x5
 
 
 
