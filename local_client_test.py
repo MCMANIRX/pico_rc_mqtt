@@ -140,10 +140,9 @@ def on_message(client, userdata, msg):
                         client.publish(rc.RC_TOPIC,rc.compileCommand(int(client_id),rc.PARAMS_OP,(rc.YAW<<16)|1,5))
                    # elif(msg.payload[2] == rc.ULT_DIST):
                         client.publish(rc.RC_TOPIC,rc.compileCommand(int(client_id),rc.PARAMS_OP,(rc.ULT_DIST<<16)|1,5))
-
-        
-
-            
+                        client.publish(rc.RC_TOPIC,rc.compileCommand(int(client_id),rc.PARAMS_OP,(rc.ESP_IP<<32)|0xC0A8FFFF,7))
+                        client.publish(rc.RC_TOPIC,rc.compileCommand(int(client_id),rc.PARAMS_OP,(rc.BAT<<16)|100<<8,5))
+           
             #print(msg.topic+" "+str(msg.payload)) # debug
     elif("script" in str(msg.topic) ):
         if((msg.payload[0] == assign_data^0x80) or  msg.payload[0] == 0xff): 

@@ -484,7 +484,7 @@ def on_message(client, userdata, msg):
         elif(msg.payload[2] == rc.ULT_DIST):
             param_buf.append({"ult_data":[client_id,rc.from_16_float(((msg.payload[3] << 8) | (msg.payload[4])))]})
         elif(msg.payload[2] == rc.BAT):
-            param_buf.append({"bat_data":[client_id,int(msg.payload[3])]})   
+            param_buf.append({"bat_data":[client_id,int(msg.payload[3])]})  
         elif(msg.payload[2] == rc.ESP_IP):
             param_buf.append({"esp_ip_data":[client_id,[msg.payload[3],msg.payload[4],msg.payload[5],msg.payload[6]]]})  
         #elif(msg.payload[2] == rc.ULT_FLAG):
@@ -561,6 +561,7 @@ client.on_message = on_message
 
 client.connect(broker_hostname, port)
 client.subscribe("/rc/+") # subscribe to all topics under '/rc/'
+client.subscribe(rc.INTERNAL_TOPIC)
 
 
 client.loop_start() # begins mqtt functionality

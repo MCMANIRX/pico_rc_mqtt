@@ -26,8 +26,16 @@ class Client():
         old_id = self.id
         self.data.setColumnCount(2)
         self.data.setRowCount(5)
-        self.data.setHorizontalHeaderLabels(['Client', str(id)])    
-          
+        self.data.setHorizontalHeaderLabels(['Client', str(id)])
+        
+
+        
+        self.data.setItem(1, 0, QTableWidgetItem("Yaw"))
+        self.data.setItem(2, 0, QTableWidgetItem("Ult"))
+        self.data.setItem(3, 0, QTableWidgetItem("Bat"))
+        self.data.setItem(4, 0, QTableWidgetItem("IP"))
+        
+
         
     def update_id(self,id):
         self.data.setHorizontalHeaderLabels(['Client', str(id)])
@@ -86,7 +94,15 @@ class Client():
         value = QTableWidgetItem(str(int(val[0]))+"."+str(int(val[1]))+"."+str(int(val[2]))+"."+str(val[3]))
             
         self.data.setItem(4, 0, label)
-        self.data.setItem(4, 1, value)                
+        self.data.setItem(4, 1, value)
+       # self.data.setSizePolicy(QSizePolicy.Minimum,QSizePolicy.Expanding)
+
+        self.data.resizeColumnsToContents()
+
+        header = self.data.horizontalHeader()       
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch) 
+        
+                
     def update_values(self,keys_values):
     
         self.data.setRowCount(len(keys_values))
@@ -105,7 +121,7 @@ class CtrlClientGUI(QMainWindow):
     ctrl_modes = ["Joystick","Trigger"]
     ctrl_mode_index = 0
 
-    v1_buttons = ["Tune Controller","Switch Control Mode","Re-home IMUs", "Run Script","Clear Log"] #Get RSSIs removed
+    v1_buttons = ["Start Camera Feed","Switch Control Mode","Re-home IMUs", "Run Script","Clear Log"] #Get RSSIs removed
     v1_radios  = ["Auto-Reassign"]
     menu_options = ["New Script","Open Script","Save Script","Run Script"]
   
@@ -113,6 +129,7 @@ class CtrlClientGUI(QMainWindow):
     client_update_signal = pyqtSignal(list,list,list,list,bool)
     ext_logText_signal   = pyqtSignal(str)
     run_script_signal    = pyqtSignal()
+    cam_request_signal   = pyqtSignal(int)
 
     filePath = ""
     
@@ -230,6 +247,10 @@ class CtrlClientGUI(QMainWindow):
         new_client = Client(id)
         self.v3.addWidget(new_client.data)
         self.clients.append(new_client)
+        
+        for client in self.clients:
+            client.data.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
+            
 
     def removeAllClients(self):
         while self.v3.count()>1:
@@ -313,7 +334,7 @@ class CtrlClientGUI(QMainWindow):
                             client.update_esp_ip(param['esp_ip_data'][1])
 
         if(change):
-            self.v3.addStretch()
+         self.v3.addStretch()
 
 
         self.v3_label.setText(f'Connected Clients: {len(self.clients)}')
@@ -334,7 +355,7 @@ class CtrlClientGUI(QMainWindow):
         font.setPointSize(10)  # Set the desired font size
         QApplication.setFont(font)
         
-        self.setWindowTitle("RC Car Control Client Suite v0.1") 
+        self.setWindowTitle("RC Car Control Client Suite v1.0") 
         self.label = QLabel(self)
         
         # geometry set
@@ -431,7 +452,6 @@ class CtrlClientGUI(QMainWindow):
         self.v3_placeholder = QWidget()
         self.v3.addWidget(self.v3_placeholder)
 
-
        # self.v3.addWidget(self.v3_label)
         
         
@@ -458,7 +478,7 @@ class CtrlClientGUI(QMainWindow):
         self.h1.addLayout(self.v2)
         self.h1.addLayout(self.separator_gen())
         self.h1.addLayout(self.v3)
-        
+
 
         self.v_master.addLayout(self.h0)
         self.v_master.addLayout(self.h1)

@@ -5,6 +5,7 @@ ASSIGN_TOPIC    =  "/rc_ctrl/assign"
 ACTION_TOPIC    =  "/rc_ctrl/action"
 SCRIPT_TOPIC    =  "/rc_ctrl/script"
 ENQUIRE_TOPIC   =  "/rc_ctrl/enq"
+INTERNAL_TOPIC  =  "/rc_ctrl/int"
 RC_TOPIC        =  "/rc/com"
 
 # command opcodes (byte 1)
