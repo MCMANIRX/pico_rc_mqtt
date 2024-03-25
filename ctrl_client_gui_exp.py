@@ -25,7 +25,7 @@ class Client():
         self.id = id
         old_id = self.id
         self.data.setColumnCount(2)
-        self.data.setRowCount(4)
+        self.data.setRowCount(5)
         self.data.setHorizontalHeaderLabels(['Client', str(id)])    
           
         
@@ -80,7 +80,13 @@ class Client():
             
         self.data.setItem(3, 0, label)
         self.data.setItem(3, 1, value)          
-                
+
+    def update_esp_ip(self,val):
+        label = QTableWidgetItem("IP")
+        value = QTableWidgetItem(str(int(val[0]))+"."+str(int(val[1]))+"."+str(int(val[2]))+"."+str(val[3]))
+            
+        self.data.setItem(4, 0, label)
+        self.data.setItem(4, 1, value)                
     def update_values(self,keys_values):
     
         self.data.setRowCount(len(keys_values))
@@ -256,7 +262,7 @@ class CtrlClientGUI(QMainWindow):
         cc.script_run()        
         
     # add and remove clients based on backend tracking
-    def client_update(self,client_ids,rssi_values,client_and_id,yaw_values,pulse):
+    def client_update(self,client_ids,rssi_values,client_and_id,params,pulse):
 
         
        # print(yaw_values)
@@ -293,17 +299,18 @@ class CtrlClientGUI(QMainWindow):
                     if client.id == rssi_datum['rssi_data'][0]:
                         client.update_rssi(rssi_datum['rssi_data'][1])
         else:
-            for yaw in yaw_values:
+            for param in params:
                 for client in self.clients:   
-                    first_key = next(iter(yaw.keys()))
-                    if client.id == next(iter(yaw.values()))[0]:
+                    first_key = next(iter(param.keys()))
+                    if client.id == next(iter(param.values()))[0]:
                         if first_key == 'yaw_data':
-                            client.update_yaw(yaw['yaw_data'][1])   
+                            client.update_yaw(param['yaw_data'][1])   
                         elif first_key == 'ult_data':
-                            client.update_ult(yaw['ult_data'][1])
+                            client.update_ult(param['ult_data'][1])
                         elif first_key == 'bat_data':
-                            client.update_bat(yaw['bat_data'][1])
-
+                            client.update_bat(param['bat_data'][1])
+                        elif first_key == 'esp_ip_data':
+                            client.update_esp_ip(param['esp_ip_data'][1])
 
         if(change):
             self.v3.addStretch()

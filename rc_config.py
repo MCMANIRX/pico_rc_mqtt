@@ -25,7 +25,7 @@ YAW             =  0x0
 INIT_IMU        =  0x1
 IMU_REHOME      =  0x4
 BAT             =  0x5
-
+ESP_IP          =  0x6
 
 
 # byte 2

@@ -485,6 +485,8 @@ def on_message(client, userdata, msg):
             param_buf.append({"ult_data":[client_id,rc.from_16_float(((msg.payload[3] << 8) | (msg.payload[4])))]})
         elif(msg.payload[2] == rc.BAT):
             param_buf.append({"bat_data":[client_id,int(msg.payload[3])]})   
+        elif(msg.payload[2] == rc.ESP_IP):
+            param_buf.append({"esp_ip_data":[client_id,[msg.payload[3],msg.payload[4],msg.payload[5],msg.payload[6]]]})  
         #elif(msg.payload[2] == rc.ULT_FLAG):
         #    logText("FLAG!") 
     

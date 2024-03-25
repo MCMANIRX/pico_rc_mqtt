@@ -3,7 +3,8 @@
 #define ROC_THRESH 150
 #include <math.h>
 
-enum pre_filter{
+enum pre_filter {
+
   RANGE,
   RANGE_AND_ROC
 

@@ -58,6 +58,7 @@
 #define IMU_BUF_LEN     (IMU_PARAM_COUNT * 2)+3
 #define ULT_BUF_LEN     6
 #define BAT_BUF_LEN     5 //avoid crash
+#define ESP_BUF_LEN     7
 #define SETTLE_THRESH   0.0005
 #define RESET_THRESH    20
 
@@ -69,6 +70,7 @@
 #define ULT_FLAG        0x3
 #define IMU_REHOME      0x4
 #define BAT             0x5
+#define ESP_IP          0x6
 
 
 #define ULT_THRESH      80

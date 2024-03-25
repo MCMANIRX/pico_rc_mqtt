@@ -24,6 +24,7 @@
 #include "inc/ultra/util/smooth_average.h"
 #include "inc/ultra/util/nbt.h"
 #include "inc/adc/battery_monitor.h"
+#include "inc/esp_uart/esp_uart.h"
 
 #define IMU MPU
 
@@ -80,7 +81,12 @@ u8_t bat_buf_flag;
 u8_t imu_buf[IMU_BUF_LEN];
 u8_t imu_buf_flag;
 
+u8_t esp_buf[ESP_BUF_LEN];
+esp_buf_flag = 1;
+
+
 float imu_offset;
+
 
 
 
@@ -289,11 +295,10 @@ void hard_stop_routine(){
 
 int failsafe_cb() {
             if(script_active)return;
-
+    _hard_stop(1000);
     move_motors(0,0);   
     printf("failsafe!");
-    watchdog_enable(1,true);
-    while(1);
+
 
 
     return 0;
@@ -421,7 +426,8 @@ void message_decoder(char *topic, char *data)
                 publish_with_strlen_qos0(RC_TOPIC, ult_buf, ULT_BUF_LEN);
             if(bat_buf_flag--==1)
                 publish_with_strlen_qos0(RC_TOPIC, bat_buf,BAT_BUF_LEN);
-
+            if(esp_buf_flag--==1)
+                publish_with_strlen_qos0(RC_TOPIC, esp_buf,ESP_BUF_LEN);
         }
         else if (data[2] == IMU_REHOME){
             if(imu_calibrated) {
@@ -550,6 +556,7 @@ int main()
     imu_buf_flag = 0;
     ult_buf_flag = 0;
     bat_buf_flag = 0;
+    esp_buf_flag = 0;
 
     /* script init */
     op_cnt = 0;
@@ -597,6 +604,7 @@ int main()
     // #################################################
 
     stdio_init_all();
+    init_esp_uart();
 
     /* overclock (optional) */
    // vreg_set_voltage(VREG_VOLTAGE_1_30);
@@ -617,6 +625,7 @@ int main()
     imu_buf[1] = PARAMS_OP;
     ult_buf[1] = PARAMS_OP;
     bat_buf[1] = PARAMS_OP;
+    esp_buf[1] = PARAMS_OP;
 
   //  imu_calibrated = true;
 
@@ -734,7 +743,7 @@ static void hw_loop()
 
 
         poll_imu();
-        printf("%f\t%f\t%f\n", yaw, last_yaw, dist);
+        //printf("%f\t%f\t%f\n", yaw, last_yaw, dist);
 
         if (yaw != last_yaw && isData)
         {
@@ -758,8 +767,8 @@ static void hw_loop()
 
     while(!assign){
         core_1_watchdog = true;
-        printf("peek!");
     }
+
 
     imu_buf[2] = IMU_INIT;
 
@@ -767,12 +776,14 @@ static void hw_loop()
     ult_buf[2] = ULT_DIST;
     imu_buf[2] = YAW;
     bat_buf[2] = BAT;
+    esp_buf[2] = ESP_IP;
  
     gpio_put(ULT_LED_PIN,0);
 
     get_battery_percentage(&bat_buf[3]);
+    get_esp_ip(&esp_buf[3]);
+    esp_buf_flag = 1;
     bat_buf_flag = 1;    
-
 
 
 
@@ -781,7 +792,7 @@ static void hw_loop()
 
     start_timer(&timer0,5);
     start_timer(&timer1,1000);
-    start_timer(&timer5, 5 * 1000);
+    start_timer(&timer5, 10 * 1000);
 
     while(1) {
         //watchdog_update();
@@ -887,8 +898,11 @@ static void hw_loop()
 
         if(timer_expired(&timer5)){
             get_battery_percentage(&bat_buf[3]);
+            get_esp_ip(&esp_buf[3]);
+            esp_buf_flag = 1;
             bat_buf_flag = 1;
-            start_timer(&timer5,5* 1000);
+           // printf("esp_ip = %x%x%x%x\n",esp_buf[3],esp_buf[4],esp_buf[5],esp_buf[6]);
+            start_timer(&timer5,10* 1000);
         }
 
 
