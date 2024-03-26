@@ -36,11 +36,11 @@
     #include "inc/bno_pico/bno_controller.h"
 #endif
 
-non_blocking_timer timer0;
-non_blocking_timer timer1;
-non_blocking_timer timer2;
-non_blocking_timer timer4;
-non_blocking_timer timer5;
+non_blocking_timer ultra_timer;
+non_blocking_timer core_1_wd_timer;
+non_blocking_timer stop_sign_timer;
+non_blocking_timer wait_timer;
+non_blocking_timer bat_esp_timer;
 
 
 smooth_average smooth; //= malloc(sizeof(smooth_average));
@@ -67,7 +67,7 @@ COMMAND cmd;
 bool assign;
 u8_t assign_data;
 char id[4];
-char ack[2];
+char gpb[3];
 
 
 bool obj_flag;
@@ -107,12 +107,15 @@ extern float yaw;
 extern volatile bool isData;
 extern void poll_imu();
 extern void init_imu();
+extern void reset_mpu();
+extern void init_imu();
 
 alarm_id_t failsafe;
 alarm_id_t waiter;
 
 void stop_sign_routine();
 void set_imu_offset();
+uint32_t swap_endian(uint32_t value);
 
 u16_t half_float(float x) {
 
@@ -156,17 +159,17 @@ void wait(int time)
     
     //if(waiting)
         //cancel_alarm(waiter);
-    start_timer(&timer4,time);
+    start_timer(&wait_timer,time);
     waiting = true;
     //waiter = add_alarm_in_ms(time, wait_cb, NULL, false);
-    printf("start wait %d\n", time);
+    //printf("start wait %d\n", time);
 
     int x = 0;
     while (waiting)
     {   
         
     watchdog_update();
-    if(timer_expired(&timer4))
+    if(timer_expired(&wait_timer))
         break;
 
         putchar(wheel[x++]);
@@ -187,7 +190,7 @@ void move_motors(s8_t x, s8_t y)
         x = clamp8(x*STEER_MULT,127);
 
     if(saw_stop_sign && y < 0 && !stop_sign_timer_began){
-        start_timer(&timer2,2000); 
+        start_timer(&stop_sign_timer,4000); 
         stop_sign_timer_began = true;
     }
 
@@ -294,10 +297,11 @@ void hard_stop_routine(){
 }
 
 int failsafe_cb() {
-            if(script_active)return;
+    printf("failsafe!");
+
+    if(script_active)return;
     _hard_stop(1000);
     move_motors(0,0);   
-    printf("failsafe!");
 
 
 
@@ -348,9 +352,9 @@ void run_command(char *command)
             break;
 
         case MSG_OP: // len 3
-            ack[0] = assign_data;
-            ack[1] = PRINT_OP;
-            publish_with_strlen(RC_TOPIC, ack, 2);
+            gpb[0] = assign_data;
+            gpb[1] = PRINT_OP;
+            publish_with_strlen(RC_TOPIC, gpb, 2);
         default:
             break;
         }
@@ -398,9 +402,9 @@ void message_decoder(char *topic, char *data)
                 failsafe = add_alarm_in_ms(2500,failsafe_cb, NULL, false);
 
 
-            ack[0] = assign_data;
-            ack[1] = ACK;
-            publish_with_strlen(RC_TOPIC, ack, 2); // QoS 0 to alleviate packet loss errors
+            gpb[0] = assign_data;
+            gpb[1] = ACK;
+            publish_with_strlen(RC_TOPIC, gpb, 2); // QoS 0 to alleviate packet loss errors
         }
     }
 
@@ -454,7 +458,7 @@ void message_decoder(char *topic, char *data)
 
             }
         }
-        else if(data[2] == CAM_STOP_SIGN) 
+        else if(data[2] == CAM_STOP_SIGN && !stop_sign_timer_began && !saw_stop_sign) 
             stop_sign = true;
         
 
@@ -523,9 +527,10 @@ void message_decoder(char *topic, char *data)
         {
             if (receiving)
             {
-                ack[0] = assign_data;
-                ack[1] = SCRIPT_RECEIVED;
-                publish_with_strlen(RC_TOPIC, ack, 2); // strlen is null-terminated so extra fcn in case the id is 0
+                gpb[0] = assign_data;
+                gpb[1] = SCRIPT_OP;
+                gpb[2] = SCRIPT_RECEIVED;
+                publish_with_strlen_qos0(RC_TOPIC, gpb, 3); // strlen is null-terminated so extra fcn in case the id is 0
                 receiving = false;
               //  puts("end!\n"); //debug
             }
@@ -604,7 +609,7 @@ int main()
     // #################################################
 
     stdio_init_all();
-    init_esp_uart();
+    init_esp_uart(UART_TX,UART_RX);
 
     /* overclock (optional) */
    // vreg_set_voltage(VREG_VOLTAGE_1_30);
@@ -639,10 +644,14 @@ int main()
 
 
 }
-
+int imu_failures;
+bool skip_imu;
 static void mqtt_loop()
 {   
-    watchdog_enable(3000,true);
+    imu_failures = 0;
+    skip_imu = false;
+    ///start_timer(&core_1_wd_timer, 5000);
+    watchdog_enable(3500,true);
     watchdog_start_tick(12);
     while (1)
     {
@@ -656,13 +665,21 @@ static void mqtt_loop()
         }
         // loop logic to keep from getting too tight
 
+           /* if(watchdog_get_count()<500){
+                reset_mpu();
+
+                i2c_deinit(i2c0);
+                skip_imu = true;
+            }*/
+
         if(_run_script){
                 gpio_put(ULT_LED_PIN,1);
 
                 run_script();
-                ack[0] = assign_data;
-                ack[1] = SCRIPT_END;
-                publish_with_strlen(RC_TOPIC, ack, 2); // strlen is null-terminated so extra fcn in case the id is 0
+                gpb[0] = assign_data;
+                gpb[1] = SCRIPT_OP;
+                gpb[2] = SCRIPT_END;
+                publish_with_strlen(RC_TOPIC, gpb, 3); // strlen is null-terminated so extra fcn in case the id is 0
                 script_active = false;
                 pwm_set_gpio_level(STEER_L,0);
                 pwm_set_gpio_level(STEER_R,0);
@@ -680,9 +697,9 @@ static void mqtt_loop()
     
     if(hard_stop && !hard_stopped)
         hard_stop_routine();
-
-    if (timer_expired(&timer1)){
-
+    
+    if (timer_expired(&core_1_wd_timer)){
+            putchar(core_1_watchdog ? 'c' : 'f');
             if (!core_1_watchdog)
             {
                 printf("reset core 1!\n");
@@ -690,17 +707,20 @@ static void mqtt_loop()
                 pwm_set_gpio_level(DRIVE_F, 0);
                 imu_calibrated = false;
                 gpio_put(ULT_LED_PIN, 1);
+                imu_failures++;
+                if(imu_failures>3)
+                    skip_imu = true;
                 multicore_reset_core1();
                 multicore_launch_core1(hw_loop);
             }
-            else{
-            }
-            start_timer(&timer1, 1000);
+
+            start_timer(&core_1_wd_timer, 1000);
             core_1_watchdog = false;
         }
 
-    if(timer_expired(&timer2) && stop_sign_timer_began){
+    if(timer_expired(&stop_sign_timer) && stop_sign_timer_began){
         saw_stop_sign = false;
+        stop_sign_timer_began = false;
     }
 }
 }
@@ -711,19 +731,27 @@ static void hw_loop()
 {   
     core_1_watchdog = true;
 
-
+    printf("init ultrasonic...");
     hcsr04_init(TRIGGER_GPIO, ECHO_GPIO);
     init_smooth(&smooth,4);
+    printf("done.\n");
     obj_flag = false;
     float _ult_dist = 0;
     ult_dist = 0;
+    printf("init battery monitor...");
 
     battery_monitor_init();
-
-
+    printf("done.\n");
+    if(!skip_imu){
+    printf("init IMU...");
 
     /* calibrate IMU */
+    if(watchdog_caused_reboot())
+        i2c_deinit(i2c0);
     init_imu();
+    printf("done.\n");
+    printf("Calibrating IMU...");
+
     while(!isData) {
         core_1_watchdog = true;
 
@@ -736,17 +764,19 @@ static void hw_loop()
     float last_yaw  = -360;
     imu_offset = 0;
 
+
     while (1)
     {   
-        core_1_watchdog = true;
 
 
 
         poll_imu();
-        //printf("%f\t%f\t%f\n", yaw, last_yaw, dist);
+        printf("%f\t%f\t%f\n", yaw, last_yaw, dist);
 
         if (yaw != last_yaw && isData)
         {
+            core_1_watchdog = true;
+
             dist = fabs(fabs(yaw) - fabs(last_yaw));
             if (dist < SETTLE_THRESH)
                 break;
@@ -760,19 +790,32 @@ static void hw_loop()
     ref_yaw = yaw;
     rot_amt = 0;
 
-    printf("IMU Calibrated!\nreference yaw is %.2f\n",ref_yaw);
+    printf("IMU calibrated.\n");
     blink(2,100);
+
     imu_calibrated = true;
+    imu_failures=0;
+    }
+
+    else 
+        printf("Skipping IMU...broken.\n");
+
     core_1_watchdog = true;
+    printf("halting until assignment...");
 
     while(!assign){
         core_1_watchdog = true;
+        putchar('\r');
     }
 
+    printf("assigned. Initializing...");
+    sleep_ms(500);
 
+    if(!skip_imu){
     imu_buf[2] = IMU_INIT;
-
     publish_with_strlen_qos0(RC_TOPIC,imu_buf,3);
+    }
+    
     ult_buf[2] = ULT_DIST;
     imu_buf[2] = YAW;
     bat_buf[2] = BAT;
@@ -781,31 +824,39 @@ static void hw_loop()
     gpio_put(ULT_LED_PIN,0);
 
     get_battery_percentage(&bat_buf[3]);
-    get_esp_ip(&esp_buf[3]);
+    if(!watchdog_caused_reboot()&& watchdog_hw->scratch[0]==0)
+        get_esp_ip(&esp_buf[3]);
+    else{
+        uint32_t __ip;
+        memcpy(&__ip, &watchdog_hw->scratch[0], 4);
+        __ip = swap_endian(__ip);
+        memcpy(&esp_buf[3], &__ip, 4);
+       // memcpy(&esp_buf[3], &watchdog_hw->scratch[0], 4);
+    }
+
     esp_buf_flag = 1;
     bat_buf_flag = 1;    
 
 
 
     u16_t temp = 0;
-    float abs_y,abs_ry;
+    float abs_y,abs_ry,last_yaw;
 
-    start_timer(&timer0,5);
-    start_timer(&timer1,1000);
-    start_timer(&timer5, 10 * 1000);
+    printf("done. Entering loop.\n");
+    start_timer(&ultra_timer,10);
+    start_timer(&core_1_wd_timer,1000);
+    start_timer(&bat_esp_timer, 10 * 1000);
 
     while(1) {
         //watchdog_update();
         core_1_watchdog = true;
 
-
+    if(!skip_imu){
         poll_imu();
-        //printf("%.2f\t",yaw);
         effective_yaw = yaw+imu_offset;
-       // printf("%.2f\t%.2f\n",imu_offset,effective_yaw);
         imu_buf_flag = 1;
 
-        
+
 
   //     printf("%.2f\t%.2f\t%d\n",dist,yaw,val);
      //  sleep_ms(10);
@@ -848,7 +899,7 @@ static void hw_loop()
             //printf("%c\t%d\t%.2f\t%.2f\t%.2f\n",pin == STEER_L ? "l":"r",rot_amt,dist,ref_yaw,yaw);
         }
 
-
+    }
 
 
         /*
@@ -860,7 +911,7 @@ static void hw_loop()
             pwm_set_gpio_level(yaw>ref_yaw ? (ref_yaw > 180 + yaw ? STEER_R : STEER_L) : (ref_yaw + 180 < yaw ? STEER_L : STEER_R),rot_amt);*/
 
 
-        if(timer_expired(&timer0)){
+        if(timer_expired(&ultra_timer)){
 
 
             float _ult_dist = hcsr04_get_distance_cm(TRIGGER_GPIO, ECHO_GPIO);
@@ -874,7 +925,7 @@ static void hw_loop()
             ult_buf[4] =  temp&0xff;
             
             ult_buf_flag = 1;
-            start_timer(&timer0,20);
+            start_timer(&ultra_timer,10);
         }
 
 
@@ -896,13 +947,14 @@ static void hw_loop()
         }
 
 
-        if(timer_expired(&timer5)){
+        if(timer_expired(&bat_esp_timer)){
             get_battery_percentage(&bat_buf[3]);
-            get_esp_ip(&esp_buf[3]);
+            if(!watchdog_caused_reboot() && watchdog_hw->scratch[0]==0)
+                get_esp_ip(&esp_buf[3]);
             esp_buf_flag = 1;
             bat_buf_flag = 1;
-           // printf("esp_ip = %x%x%x%x\n",esp_buf[3],esp_buf[4],esp_buf[5],esp_buf[6]);
-            start_timer(&timer5,10* 1000);
+            printf("esp_ip = %x%x%x%x\n",esp_buf[3],esp_buf[4],esp_buf[5],esp_buf[6]);
+            start_timer(&bat_esp_timer,10* 1000);
         }
 
 
@@ -922,3 +974,9 @@ s16_t arduino_map(s16_t x, s16_t in_min, s16_t in_max, s16_t out_min, s16_t out_
     return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
 
+uint32_t swap_endian(uint32_t value) {
+    return ((value >> 24) & 0x000000FF) |
+           ((value >>  8) & 0x0000FF00) |
+           ((value <<  8) & 0x00FF0000) |
+           ((value << 24) & 0xFF000000);
+}

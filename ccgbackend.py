@@ -486,7 +486,7 @@ def on_message(client, userdata, msg):
     
     
     #if( msg.payload[1] == rc.SCRIPT_OP):
-    #logText("IN       ",msg.topic+" "+str(msg.payload)) #debug
+   # logText("IN       ",msg.topic+" "+str(msg.payload)) #debug
  
     # sequence begin logic    
     #print(script_active,sequence_active,recv_ack_count)

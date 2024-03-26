@@ -81,8 +81,9 @@ void  waitForUsbConnect() {
 
 
 void reset_mpu() {
+    mpu.resetFIFO();                                                      // reset so we can continue cleanly
     mpu.reset();
-    sleep_ms(100);
+    sleep_ms(200);
 }
 
 void init_imu() {

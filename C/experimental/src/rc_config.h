@@ -46,10 +46,23 @@
 #define STEER_MULT      1.15  // traction for different wheeled cars
 #define STEER_THRESH    30
 #define DRIVE_THRESH    10
+
+// pins
 #define DRIVE_B         14    // b
 #define DRIVE_F         15    // f
 #define STEER_L         12    // l
 #define STEER_R         13    // r
+
+#define UART_TX         8
+#define UART_RX         9
+
+#define TRIGGER_GPIO    3
+#define ECHO_GPIO       2
+#define ULT_LED_PIN     6
+
+//I2C pins are default 
+//#define SDA           4
+//#define SCL           5
 
 
 // multicore-related constants
@@ -75,9 +88,7 @@
 
 #define ULT_THRESH      80
 
-#define TRIGGER_GPIO    3
-#define ECHO_GPIO       2
-#define ULT_LED_PIN     6
+
 
 
 const float Kp = 5109.0;       // proportional constant 

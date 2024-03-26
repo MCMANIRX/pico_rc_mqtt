@@ -18,6 +18,7 @@ extern "C" {
 
 void init_imu();
 void poll_imu();
+void reset_mpu();
 
 #ifdef __cplusplus
 }
@@ -49,7 +50,6 @@ extern volatile bool isData; // Indicates whether MPU interrupt pin has gone hig
 void initLED();
 void waitForUsbConnect();
 // void poll_imu();
-void reset_mpu();
 void dmpDataReady();
 
 #endif // IMU_H

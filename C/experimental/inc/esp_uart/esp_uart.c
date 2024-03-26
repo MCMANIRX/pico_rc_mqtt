@@ -3,6 +3,7 @@
 #include "hardware/uart.h"
 #include "hardware/irq.h"
 #include "esp_uart.h"
+#include "hardware/watchdog.h"
 
 bool found_marker;
 bool ip_found;
@@ -130,8 +131,10 @@ void get_esp_ip(uint8_t *buf) {
         }
         
        // printf("oct %s\n",octet);
+        uint8_t b = atoi(octet);
+        buf[buf_idx] = b;
+        watchdog_hw->scratch[0] |= (b<< (24 -(8*buf_idx++)));
 
-        buf[buf_idx++] = atoi(octet);
 
        // printf("buf %x\n",buf);
 
@@ -147,15 +150,15 @@ void get_esp_ip(uint8_t *buf) {
 
 
 
-void init_esp_uart() {
+void init_esp_uart(uint8_t uart_tx, uint8_t uart_rx) {
 
     found_marker = false;
     ip_found = false;
 
     uart_init(UART_ID, 2400);
 
-    gpio_set_function(UART_TX, GPIO_FUNC_UART);
-    gpio_set_function(UART_RX, GPIO_FUNC_UART);
+    gpio_set_function(uart_tx, GPIO_FUNC_UART);
+    gpio_set_function(uart_rx, GPIO_FUNC_UART);
 
     int __unused actual = uart_set_baudrate(UART_ID, BAUD_RATE);
 
