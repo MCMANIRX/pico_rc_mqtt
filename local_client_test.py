@@ -3,6 +3,7 @@
 import paho.mqtt.client as mqtt 
 import time
 import rc_config as rc
+import random
 
 
 broker = 'localhost'
@@ -137,7 +138,7 @@ def on_message(client, userdata, msg):
                     
                 elif(msg.payload[1]&0xff == rc.PARAMS_OP and assigned):
                     if(msg.payload[2] == rc.YAW):
-                        client.publish(rc.RC_TOPIC,rc.compileCommand(int(client_id),rc.PARAMS_OP,(rc.YAW<<16)|1,5))
+                        client.publish(rc.RC_TOPIC,rc.compileCommand(int(client_id),rc.PARAMS_OP,(rc.YAW<<16)|rc.to_8_signed(random.randint(-127, 127)),5))
                    # elif(msg.payload[2] == rc.ULT_DIST):
                         client.publish(rc.RC_TOPIC,rc.compileCommand(int(client_id),rc.PARAMS_OP,(rc.ULT_DIST<<16)|1,5))
                         client.publish(rc.RC_TOPIC,rc.compileCommand(int(client_id),rc.PARAMS_OP,(rc.ESP_IP<<32)|0xC0A8FFFF,7))
@@ -154,19 +155,22 @@ def on_message(client, userdata, msg):
                     receiving = True
                 elif(msg.payload[2]== rc.SCRIPT_BEGIN):
                     if(cmd_buf):
+                        print("begin!")
                         script_active = True
                         for cmd in cmd_buf:
                             msg.topic = rc.SCRIPT_TOPIC
                             msg.payload = cmd
                             run_script(client,msg) #weird python thing won't let me recursively call this on_message fcn...
-                        client.publish(rc.RC_TOPIC, ((int(client_id) << 8) | rc.SCRIPT_END).to_bytes(2,'big'))
+                        client.publish(rc.RC_TOPIC, ((int(client_id) << 16) | (int(rc.SCRIPT_OP) << 8) | rc.SCRIPT_END).to_bytes(3,'big'))
                         cmd_buf = []
+                        script_active = False
+                        print("done!")
 
                 elif(msg.payload[2] == rc.SYNC_STATUS):
                     synched = msg.payload[3]
                 elif(msg.payload[2] == rc.SCRIPT_END):
                     if(receiving):
-                        client.publish(rc.RC_TOPIC, ((int(client_id) << 8) | rc.SCRIPT_RECEIVED).to_bytes(2,'big'))
+                        client.publish(rc.RC_TOPIC, ((int(client_id) << 16) | (int(rc.SCRIPT_OP) << 8) |rc.SCRIPT_RECEIVED).to_bytes(3,'big'))
                         receiving = False
                         print("CMD  ",cmd_buf)     
             if receiving:

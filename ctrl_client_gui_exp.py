@@ -95,7 +95,6 @@ class Client():
             
         self.data.setItem(4, 0, label)
         self.data.setItem(4, 1, value)
-       # self.data.setSizePolicy(QSizePolicy.Minimum,QSizePolicy.Expanding)
 
         self.data.resizeColumnsToContents()
 
@@ -277,15 +276,20 @@ class CtrlClientGUI(QMainWindow):
                         if client in self.clients:
                             self.clients.remove(client)
                 
-    
-    
+   
+    class rs(QThread):
+  
+        def run(self):
+            cc.script_run()   
+            
     def run_script(self):
-        cc.script_run()        
+        self.rs_thread.start()       
         
     # add and remove clients based on backend tracking
+    global client_1
+    client_1 = False
     def client_update(self,client_ids,rssi_values,client_and_id,params,pulse):
-
-        
+        global client_1
        # print(yaw_values)
         
         change = False
@@ -303,6 +307,7 @@ class CtrlClientGUI(QMainWindow):
                         
             elif len(self.clients) > len(client_ids):
                 change = True
+
                 for client in self.clients:
                     if client.id not in client_ids:
                         self.remove_client(client)
@@ -333,8 +338,9 @@ class CtrlClientGUI(QMainWindow):
                         elif first_key == 'esp_ip_data':
                             client.update_esp_ip(param['esp_ip_data'][1])
 
-        if(change):
-         self.v3.addStretch()
+        #if(change and not client_1):
+        #  client_1 = True
+        # self.v3.addStretch()
 
 
         self.v3_label.setText(f'Connected Clients: {len(self.clients)}')
@@ -487,6 +493,8 @@ class CtrlClientGUI(QMainWindow):
         self.backend_thread = self.bt()
         self.backend_thread.start()
         
+        self.rs_thread = self.rs()
+
         # setup signals from QThread
         self.client_update_signal.connect(self.client_update)
         self.ext_logText_signal.connect(self.logText)

@@ -189,12 +189,14 @@ def logText(*args):
 def script_timeout(wait_time,_print):
    # logText("wait")
 
-    global recieved_flag
+    global recieved_flag,script_done
     start = datetime.now().second
     while(not recieved_flag):
         if datetime.now().second - start > wait_time:
             logText("Timeout exceeded",wait_time,"seconds.")
             return 1
+        if(script_done):
+            break
     if(_print):
         parser.timekeep_stop("Sequence transmission")
     recieved_flag = False
@@ -231,7 +233,8 @@ def transmit_sequence(sequence):
     #print(sequence)      #debug
    # print(recieved_flag) #debug
    
-    
+    from PyQt5.QtCore import QThread
+
     # synchronized command block transmission logic
     if 'sync' in sequence:
         is_sync = True
@@ -455,16 +458,7 @@ def on_message(client, userdata, msg):
         if not (client_id in enq_buf):
             enq_buf.append(client_id)
     
-    # script recieved flag tracking       
-    elif(msg.payload[1]&0xff==rc.SCRIPT_RECEIVED):
-        recv_ack_count-= 1
-     #  print("rack!:",recv_ack_count)
-        
-    # script completed flag tracking       
-    if(msg.payload[1]&0xff == rc.SCRIPT_END):
-        end_ack_count -=1
-        script_ending = True
-     #   print("eack!:",end_ack_count)
+
         
     # print next message for given ID in message_buffer
     if(msg.payload[1]&0xff == rc.PRINT_OP):
@@ -491,19 +485,34 @@ def on_message(client, userdata, msg):
         #    logText("FLAG!") 
     
     
+    #if( msg.payload[1] == rc.SCRIPT_OP):
+    #logText("IN       ",msg.topic+" "+str(msg.payload)) #debug
+ 
     # sequence begin logic    
     #print(script_active,sequence_active,recv_ack_count)
-    if(script_active and not recv_ack_count):
-        recieved_flag = True
-        if not script_ending:
-            client.publish(rc.SCRIPT_TOPIC,rc.compileCommand(0xff,rc.SCRIPT_OP,rc.SCRIPT_BEGIN,3))
-            sequence_active = True
-    
-    # sequence end logic      
-    if not end_ack_count and script_ending:
-            script_ending = False
-            script_done = True
-            sequence_active = False
+    if(msg.payload[1] == rc.SCRIPT_OP):
+        if(msg.payload[2] == rc.SCRIPT_RECEIVED):
+            recv_ack_count-= 1
+            if(script_active and not recv_ack_count):
+                recieved_flag = True
+                if not script_ending:
+                    client.publish(rc.SCRIPT_TOPIC,rc.compileCommand(0xff,rc.SCRIPT_OP,rc.SCRIPT_BEGIN,3))
+                    print(recv_ack_count)
+                    sequence_active = True
+                    
+        elif(msg.payload[2] == rc.SCRIPT_END):
+            #logText("done!")
+            end_ack_count -=1
+            script_ending = True
+            # sequence end logic      
+            if not end_ack_count and script_ending:
+                    #logText("done!")
+                    script_ending = False
+                    script_done = True
+                    sequence_active = False
+            
+
+        #   print("eack!:",end_ack_count)
               
 def _script_run():
     global sequences

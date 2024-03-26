@@ -33,7 +33,7 @@ ESP_IP          =  0x6
 SCRIPT_INCOMING  = 0x1
 SCRIPT_BEGIN     = 0xd
 SCRIPT_END       = 0x4                 
-SCRIPT_RECEIVED  = (0x6 << 4) | 0x4    
+SCRIPT_RECEIVED  = 0x64
 SYNC_STATUS      = 0x2
 
 MATLAB_FLAG      = 0x40
