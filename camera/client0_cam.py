@@ -73,9 +73,9 @@ def parse_image():
         if(img_list):
             max_idx = idx = img_list.index(max(img_list))
             if obj:
-                disp_image = cv2.rectangle(disp_image,(max_idx*xinterval,int(h),xinterval,h),(0,255,0),2)
+                disp_image = cv2.rectangle(disp_image,(max_idx*xinterval,int(h/2),xinterval,h),(0,255,0),2)
             else:
-                disp_image = cv2.rectangle(disp_image,(max_idx*xinterval,int(h),xinterval,h),(255,0,0),2)
+                disp_image = cv2.rectangle(disp_image,(max_idx*xinterval,int(h/2),xinterval,h),(255,0,0),2)
 
     if(disp_image.any):
         cv2.imshow("debug",cv2.resize(disp_image, (800,600)))
