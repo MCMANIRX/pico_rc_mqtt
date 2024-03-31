@@ -41,7 +41,7 @@ extern VectorFloat gravity; // Gravity vector [x, y, z]
 */
 extern float euler[3]; // Euler angle container [psi, theta, phi]
 extern float ypr[3]; // Yaw/pitch/roll container and gravity vector [yaw, pitch, roll]
-extern float yaw, pitch, roll; // Yaw, pitch, roll angles
+extern volatile float yaw, pitch, roll; // Yaw, pitch, roll angles
 extern volatile bool mpuInterrupt; // Indicates whether MPU interrupt pin has gone high
 extern volatile bool isData; // Indicates whether MPU interrupt pin has gone high
 

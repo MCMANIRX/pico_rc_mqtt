@@ -19,12 +19,12 @@
 #define PRINT_OP         0xe  // value to send back to print "echo" message in ctrl_client
 #define ASSIGN_OP        0x1a // assign/reassign car ID
 #define PARAMS_OP        0x1f // denotes sensor-data-related mesage
-#define CAM_OP           0x20
+#define CAM_OP           0x20 // movement message from OpenCV-Python and MediaPipe camera logic
 
 
-#define CAM_EVADE        0x0
-#define CAM_STOP_SIGN    0x1
-#define CAM_HARD_STOP    0x2
+#define CAM_EVADE        0x0  // dodge obstacle
+#define CAM_STOP_SIGN    0x1  // run stop sign detected routine
+#define CAM_HARD_STOP    0x2  // hard stop to avoid crashes
 
 // request codes
 #define RSSI_REQ         0x21 // denotes RSSI-data-related message
@@ -44,8 +44,8 @@
 // drive related constants
 #define SPEED_MULT      512   // converts int8 to int16 for 16-bit PWM register
 #define STEER_MULT      1.15  // traction for different wheeled cars
-#define STEER_THRESH    30
-#define DRIVE_THRESH    10
+#define STEER_THRESH    30    // threshold to steer motors
+#define DRIVE_THRESH    10    //threshold to drive motors
 
 // pins
 #define DRIVE_B         14    // b
@@ -53,7 +53,8 @@
 #define STEER_L         12    // l
 #define STEER_R         13    // r
 
-#define UART_TX         8
+// pins to ESP32-CAM to collect IP address
+#define UART_TX         8    
 #define UART_RX         9
 
 #define TRIGGER_GPIO    3
@@ -79,16 +80,15 @@
 
 #define YAW             0x0    // heading
 #define IMU_INIT        0x1    // tell ctrl_client car is ready to drive
-#define ULT_DIST        0x2
-#define ULT_FLAG        0x3
-#define IMU_REHOME      0x4
-#define BAT             0x5
-#define ESP_IP          0x6
+#define ULT_DIST        0x2    // ultrasonic distance
+#define ULT_FLAG        0x3    // within range (80cm)
+#define IMU_REHOME      0x4    // set IMU to 0
+#define BAT             0x5    // battery percentage
+#define ESP_IP          0x6    // esp-32 IP address
 
 
-#define ULT_THRESH      80
-
-
+#define ULT_THRESH      80     // threshold for detection of object
+#define ULT_INTERVAL    10     // time interval between scans
 
 
 const float Kp = 5109.0;       // proportional constant 

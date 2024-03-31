@@ -21,7 +21,7 @@
 #include "mqtt_helper.h"
 
 #include "inc/ultra/hcsr04.h"
-#include "inc/ultra/util/smooth_average.h"
+#include "inc/ultra/util/smooth_filter.h"
 #include "inc/ultra/util/nbt.h"
 #include "inc/adc/battery_monitor.h"
 #include "inc/esp_uart/esp_uart.h"
@@ -43,7 +43,7 @@ non_blocking_timer wait_timer;
 non_blocking_timer bat_esp_timer;
 
 
-smooth_average smooth; //= malloc(sizeof(smooth_average));
+smooth_filter smooth; //= malloc(sizeof(smooth_filter));
 
 volatile bool _run_script;
 volatile bool core_1_running;
@@ -98,12 +98,12 @@ float ult_dist = 0;
 
 volatile bool imu_calibrated;
 volatile bool prop_steer;
-float ref_yaw;
-float effective_yaw;
+volatile float ref_yaw;
+volatile float effective_yaw;
 float dist;
 u32_t rot_amt;
 
-extern float yaw;
+extern volatile float yaw;
 extern volatile bool isData;
 extern void poll_imu();
 extern void init_imu();
@@ -139,6 +139,18 @@ s8_t clamp8(float x, int limit) {
 
 
 s16_t arduino_map(s16_t x, s16_t in_min, s16_t in_max, s16_t out_min, s16_t out_max);
+
+float calc_average(uint8_t trigger_gpio, uint8_t echo_gpio)
+{
+  static float average = -1.0 ;
+  if (average == -1.0)  // special case for first reading.
+  {
+    average = hcsr04_get_distance_cm( trigger_gpio,  echo_gpio);
+    return average ;
+  }
+  average += 0.1 * (hcsr04_get_distance_cm( trigger_gpio,  echo_gpio) - average) ;  // 0.1 for approx 10 sample averate, 0.01 for 100 sample etc.
+  return average ;
+}
 
 
 /* non-blocking wait with spinning wheel to make it work */
@@ -843,7 +855,7 @@ static void hw_loop()
     float abs_y,abs_ry,last_yaw;
 
     printf("done. Entering loop.\n");
-    start_timer(&ultra_timer,10);
+    start_timer(&ultra_timer,ULT_INTERVAL);
     start_timer(&core_1_wd_timer,1000);
     start_timer(&bat_esp_timer, 10 * 1000);
 
@@ -902,20 +914,15 @@ static void hw_loop()
     }
 
 
-        /*
+        
 
 
         
-        working on doing proportional car steering with an IMU. my imu has a yaw range of 0 to 360 degrees and im trying to write code such that the wheels turn left or right a specified distance, rot_amt, toward the reference yaw. the yaw is compared toward the reference yaw to determine which pin to set to rot_amt to turn the motor toward the axis. this is my current code, where abs_y is the absolute value of the yaw, and abs_ry is the absolute value of the reference yaw. if last_y is greater than 0 that means the car is moving backwards, so reverse steer pins
-
-            pwm_set_gpio_level(yaw>ref_yaw ? (ref_yaw > 180 + yaw ? STEER_R : STEER_L) : (ref_yaw + 180 < yaw ? STEER_L : STEER_R),rot_amt);*/
-
 
         if(timer_expired(&ultra_timer)){
 
 
             float _ult_dist = hcsr04_get_distance_cm(TRIGGER_GPIO, ECHO_GPIO);
-    
 
             ult_dist = filter_median_kalman(&smooth,_ult_dist,RANGE);
            // ult_dist = filter_average_kalman(&smooth,_ult_dist,RANGE_AND_ROC);
@@ -925,7 +932,7 @@ static void hw_loop()
             ult_buf[4] =  temp&0xff;
             
             ult_buf_flag = 1;
-            start_timer(&ultra_timer,10);
+            start_timer(&ultra_timer,ULT_INTERVAL);
         }
 
 

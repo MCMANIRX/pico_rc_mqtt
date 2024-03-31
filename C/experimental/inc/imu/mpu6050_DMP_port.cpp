@@ -34,7 +34,7 @@ VectorInt16 aaWorld;    // [x, y, z]            world-frame accel sensor measure
 VectorFloat gravity;    // [x, y, z]            gravity vector
 float euler[3];         // [psi, theta, phi]    Euler angle container
 float ypr[3];           // [yaw, pitch, roll]   yaw/pitch/roll container and gravity vector
-float yaw, pitch, roll;
+volatile float yaw, pitch, roll;
 
 volatile bool mpuInterrupt = false;     // indicates whether MPU interrupt pin has gone high
 volatile bool isData;
