@@ -1,5 +1,5 @@
 # PICO_RC_MQTT
-This project aims to create a cohesive control system for autonomous vehicles using Raspberry Pi Pico W-controlled RC Cars.
+This project aims to create a model of a cohesive control system for autonomous vehicles using Raspberry Pi Pico W-controlled RC Cars.
 
 ## Hardware
 
