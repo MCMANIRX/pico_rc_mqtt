@@ -435,9 +435,10 @@ void message_decoder(char *topic, char *data)
     // params logic
     if(data[1] == PARAMS_OP) {
 
-        if(data[2] == YAW && imu_buf_flag-->0){
+        if(data[2] == YAW){
             //imu_buf[3] = 0xaa;
-            publish_with_strlen_qos0(RC_TOPIC, imu_buf, IMU_BUF_LEN);
+            if(imu_buf_flag--==1)
+                publish_with_strlen_qos0(RC_TOPIC, imu_buf, IMU_BUF_LEN);
             if(ult_buf_flag--==1)
                 publish_with_strlen_qos0(RC_TOPIC, ult_buf, ULT_BUF_LEN);
             if(bat_buf_flag--==1)
@@ -568,6 +569,7 @@ static void mqtt_loop();
 
 int main()
 {
+    watchdog_enable(30*1000,true);
 
     // init IMU data transfer logic
     imu_buf_flag = 0;
@@ -745,7 +747,7 @@ static void hw_loop()
 
     printf("init ultrasonic...");
     hcsr04_init(TRIGGER_GPIO, ECHO_GPIO);
-    init_smooth(&smooth,4);
+    init_smooth(&smooth,16);
     printf("done.\n");
     obj_flag = false;
     float _ult_dist = 0;
@@ -785,7 +787,7 @@ static void hw_loop()
         poll_imu();
         printf("%f\t%f\t%f\n", yaw, last_yaw, dist);
 
-        if (yaw != last_yaw && isData)
+        if (yaw != last_yaw /*&& isData*/)
         {
             core_1_watchdog = true;
 
@@ -921,10 +923,10 @@ static void hw_loop()
 
         if(timer_expired(&ultra_timer)){
 
+          //  float _ult_dist = hcsr04_get_distance_cm(TRIGGER_GPIO, ECHO_GPIO);
+          ult_dist = kalman(calc_average(TRIGGER_GPIO,ECHO_GPIO));
 
-            float _ult_dist = hcsr04_get_distance_cm(TRIGGER_GPIO, ECHO_GPIO);
-
-            ult_dist = filter_median_kalman(&smooth,_ult_dist,RANGE);
+           // ult_dist = filter_median_kalman(&smooth,_ult_dist,RANGE);
            // ult_dist = filter_average_kalman(&smooth,_ult_dist,RANGE_AND_ROC);
            // printf("Distance %.2f\n",ult_dist);
             temp = half_float(ult_dist/VALUE_THRESH);

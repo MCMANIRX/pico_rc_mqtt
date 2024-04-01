@@ -61,3 +61,4 @@ float hcsr04_get_distance_cm(uint8_t trigger_gpio, uint8_t echo_gpio) {
     // Calculo y devuelvo la distancia en cm
     return pulse_length / 58.0;
 }
+
