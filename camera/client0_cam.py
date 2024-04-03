@@ -6,7 +6,7 @@ import matplotlib.pyplot as mpl
 import sys
 import paho.mqtt.client as mqtt 
 import rc_config as rc
-import ml_module
+#import ml_module
 import requests
 
 
@@ -165,7 +165,7 @@ def set_resolution(url: str, index: int=1, verbose: bool=False):
     
 URL = "http://192.168.1.139"
 AWB = True
-SVGA = 8
+SVGA = 6
 set_resolution(URL,SVGA,verbose=False) # set to SVGA (800x600) for best quality + latency
 
 #cap=cv2.VideoCapture(0)
@@ -184,8 +184,9 @@ not_stop_sign = False
 
 while(cap.isOpened()):
     ret, image = cap.read()
-    image,stop_sign, = ml_module.look_at_frame(image)
+    #image,stop_sign, = ml_module.look_at_frame(image)
     #cv2.imshow("debug",image)
+    stop_sign = False
 
     parse_image()
     if(stop_sign and not_stop_sign):

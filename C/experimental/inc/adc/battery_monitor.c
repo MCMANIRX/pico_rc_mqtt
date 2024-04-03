@@ -17,7 +17,8 @@ void get_battery_percentage(uint8_t *percentage){
 
         uint16_t voltage = adc_read();
         float _voltage = (voltage*conversion_factor)+ADC_OFFSET;
-        *percentage = _voltage/vmax * 100;
+        *percentage =  ((_voltage - vmin) / (vmax - vmin)) * 100.0f;
+
 
     }
 

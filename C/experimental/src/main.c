@@ -1,10 +1,4 @@
-/*
-*   TODO:
-*
-*   1. P axis lock (use IMU to drive straight on an axis with PID loop)
-*   2. Add functionality (script) to set local x y or z axis
-*
-*/
+// Mateo Smith, 2024
 
 #include <math.h>
 
@@ -168,13 +162,15 @@ char wheel[] = {'-', '\\', '|', '/'};
 
 void wait(int time)
 {
+    static bool ss_script = false;
+
+    int64_t time_left = abs(wait_timer.target_time_us - wait_timer.duration_ms);
     
-    //if(waiting)
-        //cancel_alarm(waiter);
+
     start_timer(&wait_timer,time);
     waiting = true;
     //waiter = add_alarm_in_ms(time, wait_cb, NULL, false);
-    //printf("start wait %d\n", time);
+    printf("start wait %d\n", time);
 
     int x = 0;
     while (waiting)
@@ -190,6 +186,15 @@ void wait(int time)
             x = 0;
     }
     waiting = false;
+
+    if(time != 40 && stop_sign&script_active && (!saw_stop_sign) && (!ss_script)) {
+        printf("stop sign! time left: %d\n", time_left);
+        ss_script = true;
+        wait(time_left);
+        ss_script = false;
+    }
+    else ss_script = false;
+
 }
 
 void move_motors(s8_t x, s8_t y)
@@ -353,8 +358,11 @@ void run_command(char *command)
             break;
 
         case YMOVE_OP: // len 5
+
             move_motors(0, command[2]);
+            prop_steer = true;
             wait((u32_t)((command[3] << 8) | command[4]));
+            prop_steer = false;
         //    move_motors(0, 0);
             break;
 
