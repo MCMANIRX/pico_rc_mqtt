@@ -931,10 +931,10 @@ static void hw_loop()
 
         if(timer_expired(&ultra_timer)){
 
-          //  float _ult_dist = hcsr04_get_distance_cm(TRIGGER_GPIO, ECHO_GPIO);
-          ult_dist = kalman(calc_average(TRIGGER_GPIO,ECHO_GPIO));
+          float _ult_dist = hcsr04_get_distance_cm(TRIGGER_GPIO, ECHO_GPIO);
+         // ult_dist = kalman(calc_average(TRIGGER_GPIO,ECHO_GPIO));
 
-           // ult_dist = filter_median_kalman(&smooth,_ult_dist,RANGE);
+          ult_dist = filter_median_kalman(&smooth,_ult_dist,RANGE);
            // ult_dist = filter_average_kalman(&smooth,_ult_dist,RANGE_AND_ROC);
            // printf("Distance %.2f\n",ult_dist);
             temp = half_float(ult_dist/VALUE_THRESH);
