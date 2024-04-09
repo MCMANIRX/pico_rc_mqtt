@@ -1,9 +1,9 @@
 from machine import Pin,PWM
+import time
 
+drive  = PWM(Pin(14))
+drive.freq(1000)
 
-drivea = PWM(Pin(15,Pin.OUT))
-drivea.freq(1000)
-drivea.duty_u16(60000)
-
-while(True):
-    None
+drive.duty_u16(0000)
+#drive = Pin(15,Pin.OUT)
+#drive.value(1)

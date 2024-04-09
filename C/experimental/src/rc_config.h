@@ -53,13 +53,16 @@
 #define STEER_L         12    // l
 #define STEER_R         13    // r
 
+
+
+
 // pins to ESP32-CAM to collect IP address
 #define UART_TX         8    
 #define UART_RX         9
 
 #define TRIGGER_GPIO    3
 #define ECHO_GPIO       2
-#define ULT_LED_PIN     6
+#define ULT_LED_PIN     17
 
 //I2C pins are default 
 //#define SDA           4

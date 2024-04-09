@@ -110,6 +110,7 @@ void init_imu() {
     devStatus = mpu.dmpInitialize();
 
     /* --- if you have calibration data then set the sensor offsets here --- */
+
     // offsets 2/5/24 - Mateo 
 
     mpu.setXAccelOffset(-4092);
@@ -118,6 +119,16 @@ void init_imu() {
     mpu.setXGyroOffset(186);
     mpu.setYGyroOffset(4);
     mpu.setZGyroOffset(13);
+
+    // offsets 4/6/24 - Mateo 
+/*
+    mpu.setXAccelOffset(-518);
+    mpu.setYAccelOffset(-819);
+    mpu.setZAccelOffset(738);
+    mpu.setXGyroOffset(-67);
+    mpu.setYGyroOffset(-88);
+    mpu.setZGyroOffset(-24);
+    */
 
     /* --- alternatively you can try this (6 loops should be enough) --- */
     // mpu.CalibrateAccel(6);

@@ -58,9 +58,13 @@ void blink(uint8_t count, int delay)
     for (int i = 0; i < count; ++i)
     {
         sleep_ms(delay);
-        cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
+        gpio_put(ULT_LED_PIN,1);
+    
+       // cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
         sleep_ms(delay);
-        cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
+        gpio_put(ULT_LED_PIN,0);
+
+       // cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
     }
 }
 

@@ -21,14 +21,34 @@
 #include "inc/esp_uart/esp_uart.h"
 
 #define IMU MPU
+#define ULT_CONNECT 
+#define ESP_CONNECT 
+#define BAT_CONNECT 
 
 
 
-#if IMU == MPU
+#if     IMU == MPU
     #include "inc/imu/mpu6050_DMP_port.h"
-#elif IMU == BNO
+#elif   IMU == BNO
     #include "inc/bno_pico/bno_controller.h"
 #endif
+
+/*#define ALT_DRIVE_PINS false
+
+#if ALT_DRIVE_PINS ==  true
+    #undef DRIVE_B
+    #undef DRIVE_F
+    #undef STEER_L
+    #undef STEER_R
+
+    #define DRIVE_B 16
+    #define DRIVE_F 17
+    #define STEER_L 18
+    #define STEER_R 19
+#endif*/
+
+
+    
 
 non_blocking_timer ultra_timer;
 non_blocking_timer core_1_wd_timer;
@@ -214,6 +234,14 @@ void move_motors(s8_t x, s8_t y)
     last_x = x;
     last_y = y;
 
+    #if IMU != MPU || IMU != BNO
+        hard_stopped = false;
+    #endif
+
+
+    //printf("y\t%d\thardstopped\t%s\n",abs(y),hard_stopped?"true":"false");
+
+
     if (y < 0 && !hard_stopped)
     {
      //   pwm_set_gpio_level(DRIVE_F, abs(127 * SPEED_MULT)); 
@@ -223,20 +251,29 @@ void move_motors(s8_t x, s8_t y)
 
      // 12 = STEER_L = INA2
      // 13 = STEER_R = INB2
+        gpio_put(ULT_LED_PIN,1);
+
 
         pwm_set_gpio_level(DRIVE_F, abs(y * SPEED_MULT)); //may need to redo with smaller function??
         pwm_set_gpio_level(DRIVE_B, 0);
+        printf("ddy\t%d\n",abs(y));
+
     }
     else if (y > 0)
     {
+        gpio_put(ULT_LED_PIN,0);
+
       //  pwm_set_gpio_level(DRIVE_B, abs(127 * SPEED_MULT)); 
         pwm_set_gpio_level(DRIVE_B, abs(y * SPEED_MULT));
         pwm_set_gpio_level(DRIVE_F, 0);
+             //   printf("y\t%d\n",abs(y));
+
     }
 
     else if (abs(y) < DRIVE_THRESH)
     {
-       // printf("y\t%d\n",abs(y));
+        gpio_put(ULT_LED_PIN,0);
+
         pwm_set_gpio_level(DRIVE_F, 0);
         pwm_set_gpio_level(DRIVE_B, 0);
         prop_steer = false;
@@ -316,7 +353,7 @@ void hard_stop_routine(){
 int failsafe_cb() {
     printf("failsafe!");
 
-    if(script_active)return;
+
     _hard_stop(1000);
     move_motors(0,0);   
 
@@ -445,14 +482,29 @@ void message_decoder(char *topic, char *data)
 
         if(data[2] == YAW){
             //imu_buf[3] = 0xaa;
-            if(imu_buf_flag--==1)
-                publish_with_strlen_qos0(RC_TOPIC, imu_buf, IMU_BUF_LEN);
-            if(ult_buf_flag--==1)
-                publish_with_strlen_qos0(RC_TOPIC, ult_buf, ULT_BUF_LEN);
+
+            #if IMU == MPU || IMU == BNO
+                if(imu_buf_flag--==1)
+                    publish_with_strlen_qos0(RC_TOPIC, imu_buf, IMU_BUF_LEN);
+            #endif
+
+
+            #ifdef ULT_CONNECT
+                if(ult_buf_flag--==1)
+                    publish_with_strlen_qos0(RC_TOPIC, ult_buf, ULT_BUF_LEN);
+            #endif
+
+
+            #ifdef BAT_CONNECT
             if(bat_buf_flag--==1)
                 publish_with_strlen_qos0(RC_TOPIC, bat_buf,BAT_BUF_LEN);
+            #endif
+
+            
+            #ifdef ESP_CONNECT
             if(esp_buf_flag--==1)
                 publish_with_strlen_qos0(RC_TOPIC, esp_buf,ESP_BUF_LEN);
+            #endif
         }
         else if (data[2] == IMU_REHOME){
             if(imu_calibrated) {
@@ -500,6 +552,7 @@ void message_decoder(char *topic, char *data)
             imu_buf[0] = assign_data;
             ult_buf[0] = assign_data;
             bat_buf[0] = assign_data;
+            esp_buf[0] = assign_data;
 
             sprintf(id, "%d", assign_data);
             set_id_for_reconnect(id);
@@ -624,6 +677,7 @@ int main()
     pwm_set_gpio_level(DRIVE_B,0);
 
 
+
     /* Ultrasonic LED init */
     gpio_init(ULT_LED_PIN);
     gpio_set_dir(ULT_LED_PIN,true);
@@ -672,7 +726,12 @@ static void mqtt_loop()
 {   
     imu_failures = 0;
     skip_imu = false;
-    ///start_timer(&core_1_wd_timer, 5000);
+
+    #if IMU != MPU && IMU != BNO
+        skip_imu = true;
+    #endif
+
+    //start_timer(&core_1_wd_timer, 5000);
     watchdog_enable(3500,true);
     watchdog_start_tick(12);
     while (1)
@@ -817,6 +876,7 @@ static void hw_loop()
 
     imu_calibrated = true;
     imu_failures=0;
+
     }
 
     else 
@@ -845,16 +905,23 @@ static void hw_loop()
  
     gpio_put(ULT_LED_PIN,0);
 
-    get_battery_percentage(&bat_buf[3]);
-    if(!watchdog_caused_reboot()&& watchdog_hw->scratch[0]==0)
-        get_esp_ip(&esp_buf[3]);
-    else{
-        uint32_t __ip;
-        memcpy(&__ip, &watchdog_hw->scratch[0], 4);
-        __ip = swap_endian(__ip);
-        memcpy(&esp_buf[3], &__ip, 4);
-       // memcpy(&esp_buf[3], &watchdog_hw->scratch[0], 4);
-    }
+    #ifdef BAT_CONNECT
+        get_battery_percentage(&bat_buf[3]);
+    #endif
+
+    #ifdef ESP_CONNECT
+        if(!watchdog_caused_reboot()&& watchdog_hw->scratch[0]==0)
+            get_esp_ip(&esp_buf[3]);
+        else{
+            uint32_t __ip;
+            memcpy(&__ip, &watchdog_hw->scratch[0], 4);
+            __ip = swap_endian(__ip);
+            memcpy(&esp_buf[3], &__ip, 4);
+        // memcpy(&esp_buf[3], &watchdog_hw->scratch[0], 4);
+        }
+
+    #endif
+
 
     esp_buf_flag = 1;
     bat_buf_flag = 1;    
@@ -868,6 +935,9 @@ static void hw_loop()
     start_timer(&ultra_timer,ULT_INTERVAL);
     start_timer(&core_1_wd_timer,1000);
     start_timer(&bat_esp_timer, 10 * 1000);
+
+
+    imu_calibrated =true;
 
     while(1) {
         //watchdog_update();
@@ -928,49 +998,55 @@ static void hw_loop()
 
 
         
+        #ifdef ULT_CONNECT
+            if(timer_expired(&ultra_timer)){
 
-        if(timer_expired(&ultra_timer)){
+            float _ult_dist = hcsr04_get_distance_cm(TRIGGER_GPIO, ECHO_GPIO);
+            // ult_dist = kalman(calc_average(TRIGGER_GPIO,ECHO_GPIO));
 
-          float _ult_dist = hcsr04_get_distance_cm(TRIGGER_GPIO, ECHO_GPIO);
-         // ult_dist = kalman(calc_average(TRIGGER_GPIO,ECHO_GPIO));
-
-          ult_dist = filter_median_kalman(&smooth,_ult_dist,RANGE);
-           // ult_dist = filter_average_kalman(&smooth,_ult_dist,RANGE_AND_ROC);
-           // printf("Distance %.2f\n",ult_dist);
-            temp = half_float(ult_dist/VALUE_THRESH);
-            ult_buf[3] = (temp>>8)&0xff;
-            ult_buf[4] =  temp&0xff;
-            
-            ult_buf_flag = 1;
-            start_timer(&ultra_timer,ULT_INTERVAL);
-        }
-
-
-        if(ult_dist < ULT_THRESH) {
-         //       gpio_put(ULT_LED_PIN,1);
-                ult_buf[5] = 1;
-                obj_flag = true;
-        }
-
-        else {
-          //  gpio_put(ULT_LED_PIN,0);
-            ult_buf[5] = 0;
-            obj_flag = false;
-
-            if(hard_stopped)
-                hard_stopped = false;
+            ult_dist = filter_median_kalman(&smooth,_ult_dist,RANGE);
+            // ult_dist = filter_average_kalman(&smooth,_ult_dist,RANGE_AND_ROC);
+            // printf("Distance %.2f\n",ult_dist);
+                temp = half_float(ult_dist/VALUE_THRESH);
+                ult_buf[3] = (temp>>8)&0xff;
+                ult_buf[4] =  temp&0xff;
+                
+                ult_buf_flag = 1;
+                start_timer(&ultra_timer,ULT_INTERVAL);
+            }
 
 
-        }
+            if(ult_dist < ULT_THRESH) {
+            //       gpio_put(ULT_LED_PIN,1);
+                    ult_buf[5] = 1;
+                    obj_flag = true;
+            }
+
+            else {
+            //  gpio_put(ULT_LED_PIN,0);
+                ult_buf[5] = 0;
+                obj_flag = false;
+
+                if(hard_stopped)
+                    hard_stopped = false;
+
+
+            }
+        #endif
 
 
         if(timer_expired(&bat_esp_timer)){
-            get_battery_percentage(&bat_buf[3]);
-            if(!watchdog_caused_reboot() && watchdog_hw->scratch[0]==0)
-                get_esp_ip(&esp_buf[3]);
-            esp_buf_flag = 1;
-            bat_buf_flag = 1;
-            printf("esp_ip = %x%x%x%x\n",esp_buf[3],esp_buf[4],esp_buf[5],esp_buf[6]);
+            #ifdef BAT_CONNECT
+                get_battery_percentage(&bat_buf[3]);
+            #endif
+
+            #ifdef ESP_CONNECT
+                if(!watchdog_caused_reboot() && watchdog_hw->scratch[0]==0)
+                    get_esp_ip(&esp_buf[3]);
+                esp_buf_flag = 1;
+                bat_buf_flag = 1;
+                printf("esp_ip = %x%x%x%x\n",esp_buf[3],esp_buf[4],esp_buf[5],esp_buf[6]);
+            #endif
             start_timer(&bat_esp_timer,10* 1000);
         }
 
