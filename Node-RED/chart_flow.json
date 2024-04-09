@@ -33,8 +33,8 @@
         "type": "function",
         "z": "7210a587486ae282",
         "name": "function 1",
-        "func": "var rssi = null\nvar yaw  = null\nvar ult_dist = null\n\nif(msg.payload[1]==0x1f){\n    if(msg.payload[2]==0x0) {\n        yaw = {payload: (((msg.payload[3]<<8)|msg.payload[4])/32767.0)*180.0}\n    }\n    else if (msg.payload[2]==0x2) {\n        ult_dist = {payload: (((msg.payload[3]<<8)|msg.payload[4])/32767.0)*300.0}\n    }\n}\nelse if (msg.payload[1] == 0x21) {\n    rssi = { payload: msg.payload[2] }\n}\n\n//console.log([rssi,yaw])\nreturn [rssi,yaw,ult_dist]",
-        "outputs": 3,
+        "func": "var rssi = null\nvar yaw  = null\n\nif(msg.payload[1]==0x1f){\n    if(msg.payload[2]==0x0) {\n        yaw = {payload: msg.payload[4]}\n    }\n\n}\nelse if (msg.payload[1] == 0x21) {\n    rssi = { payload: msg.payload[2] }\n}\n\n//console.log([rssi,yaw])\nreturn [rssi,yaw]",
+        "outputs": 2,
         "timeout": 0,
         "noerr": 0,
         "initialize": "",
@@ -48,9 +48,6 @@
             ],
             [
                 "b8efb7b268686d09"
-            ],
-            [
-                "4fb6593c5daa7e1f"
             ]
         ]
     },
@@ -146,53 +143,6 @@
         ],
         "inputLabels": [
             "RSSI"
-        ]
-    },
-    {
-        "id": "4fb6593c5daa7e1f",
-        "type": "ui_chart",
-        "z": "7210a587486ae282",
-        "name": "ult",
-        "group": "1e182651f6e25525",
-        "order": 0,
-        "width": "0",
-        "height": "0",
-        "label": "chart_ult",
-        "chartType": "line",
-        "legend": "false",
-        "xformat": "HH:mm:ss",
-        "interpolate": "bezier",
-        "nodata": "",
-        "dot": false,
-        "ymin": "-300",
-        "ymax": "300",
-        "removeOlder": 1,
-        "removeOlderPoints": "40",
-        "removeOlderUnit": "60",
-        "cutout": 0,
-        "useOneColor": false,
-        "useUTC": false,
-        "colors": [
-            "#1f77b4",
-            "#aec7e8",
-            "#ff7f0e",
-            "#2ca02c",
-            "#98df8a",
-            "#d62728",
-            "#ff9896",
-            "#9467bd",
-            "#c5b0d5"
-        ],
-        "outputs": 1,
-        "useDifferentColor": false,
-        "className": "",
-        "x": 570,
-        "y": 240,
-        "wires": [
-            []
-        ],
-        "inputLabels": [
-            "Ultrasonic distance"
         ]
     },
     {
