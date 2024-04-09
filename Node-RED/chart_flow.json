@@ -1,0 +1,211 @@
+[
+    {
+        "id": "7210a587486ae282",
+        "type": "tab",
+        "label": "Flow 1",
+        "disabled": false,
+        "info": "",
+        "env": []
+    },
+    {
+        "id": "34817610b123234c",
+        "type": "mqtt in",
+        "z": "7210a587486ae282",
+        "name": "",
+        "topic": "/rc/com",
+        "qos": "0",
+        "datatype": "auto-detect",
+        "broker": "2b6216548f42fcec",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 210,
+        "y": 80,
+        "wires": [
+            [
+                "41ea9d3cb6d9cedd"
+            ]
+        ]
+    },
+    {
+        "id": "41ea9d3cb6d9cedd",
+        "type": "function",
+        "z": "7210a587486ae282",
+        "name": "function 1",
+        "func": "var rssi = null\nvar yaw  = null\nif(msg.payload[1]==0x1f){\n    if(msg.payload[2]==0x0) {\n        console.log(msg.payload[4])\n        yaw = {payload: msg.payload[4]}\n    }\n}\nelse if (msg.payload[1] == 0x21) {\n    rssi = { payload: msg.payload[2] }\n}\n\n//console.log([rssi,yaw])\nreturn [rssi,yaw]\n\n/*if (msg.payload[1] == 0x1f) {\n    if (msg.payload[2] == 0x0) {\n        console.log(msg.payload)\n        msg.payload = msg.payload[4]\n        return msg\n    }\n}*/",
+        "outputs": 2,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 360,
+        "y": 100,
+        "wires": [
+            [
+                "2f0f41a787a58083"
+            ],
+            [
+                "b8efb7b268686d09"
+            ]
+        ]
+    },
+    {
+        "id": "2f0f41a787a58083",
+        "type": "ui_chart",
+        "z": "7210a587486ae282",
+        "name": "RSSI",
+        "group": "1e182651f6e25525",
+        "order": 0,
+        "width": "0",
+        "height": "0",
+        "label": "chart_rssi",
+        "chartType": "line",
+        "legend": "false",
+        "xformat": "HH:mm:ss",
+        "interpolate": "step",
+        "nodata": "",
+        "dot": false,
+        "ymin": "-120",
+        "ymax": "10",
+        "removeOlder": 1,
+        "removeOlderPoints": "20",
+        "removeOlderUnit": "60",
+        "cutout": 0,
+        "useOneColor": false,
+        "useUTC": false,
+        "colors": [
+            "#21b31e",
+            "#aec7e8",
+            "#ff7f0e",
+            "#00ff00",
+            "#98df8a",
+            "#d62728",
+            "#ff9896",
+            "#9467bd",
+            "#c5b0d5"
+        ],
+        "outputs": 1,
+        "useDifferentColor": false,
+        "className": "",
+        "x": 550,
+        "y": 100,
+        "wires": [
+            []
+        ],
+        "inputLabels": [
+            "RSSI"
+        ]
+    },
+    {
+        "id": "b8efb7b268686d09",
+        "type": "ui_chart",
+        "z": "7210a587486ae282",
+        "name": "yaw",
+        "group": "1e182651f6e25525",
+        "order": 0,
+        "width": "0",
+        "height": "0",
+        "label": "chart_yaw",
+        "chartType": "line",
+        "legend": "false",
+        "xformat": "HH:mm:ss",
+        "interpolate": "bezier",
+        "nodata": "",
+        "dot": false,
+        "ymin": "-300",
+        "ymax": "300",
+        "removeOlder": 1,
+        "removeOlderPoints": "40",
+        "removeOlderUnit": "60",
+        "cutout": 0,
+        "useOneColor": false,
+        "useUTC": false,
+        "colors": [
+            "#1f77b4",
+            "#aec7e8",
+            "#ff7f0e",
+            "#2ca02c",
+            "#98df8a",
+            "#d62728",
+            "#ff9896",
+            "#9467bd",
+            "#c5b0d5"
+        ],
+        "outputs": 1,
+        "useDifferentColor": false,
+        "className": "",
+        "x": 570,
+        "y": 160,
+        "wires": [
+            []
+        ],
+        "inputLabels": [
+            "RSSI"
+        ]
+    },
+    {
+        "id": "31bca82e753f9368",
+        "type": "ui_spacer",
+        "z": "7210a587486ae282",
+        "name": "spacer",
+        "group": "39a04b8276c33fd0",
+        "order": 2,
+        "width": 1,
+        "height": 1
+    },
+    {
+        "id": "2b6216548f42fcec",
+        "type": "mqtt-broker",
+        "name": "docker-host",
+        "broker": "localhost",
+        "port": "1883",
+        "clientid": "",
+        "autoConnect": true,
+        "usetls": false,
+        "protocolVersion": "5",
+        "keepalive": "60",
+        "cleansession": true,
+        "autoUnsubscribe": true,
+        "birthTopic": "/rc_ctrl/action_topic",
+        "birthQos": "0",
+        "birthRetain": "false",
+        "birthPayload": "feet!!",
+        "birthMsg": {
+            "contentType": "text/plain"
+        },
+        "closeTopic": "",
+        "closeQos": "0",
+        "closeRetain": "false",
+        "closePayload": "",
+        "closeMsg": {},
+        "willTopic": "",
+        "willQos": "0",
+        "willRetain": "false",
+        "willPayload": "",
+        "willMsg": {},
+        "userProps": "",
+        "sessionExpiry": ""
+    },
+    {
+        "id": "1e182651f6e25525",
+        "type": "ui_group",
+        "name": "Feet",
+        "tab": "7b248d4a566b4432",
+        "order": 1,
+        "disp": false,
+        "width": "6",
+        "collapse": false,
+        "className": ""
+    },
+    {
+        "id": "7b248d4a566b4432",
+        "type": "ui_tab",
+        "name": "db",
+        "icon": "dashboard",
+        "order": 0,
+        "disabled": false,
+        "hidden": false
+    }
+]
