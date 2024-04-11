@@ -33,8 +33,8 @@
         "type": "function",
         "z": "7210a587486ae282",
         "name": "function 1",
-        "func": "var rssi = null\nvar yaw  = null\n\nif(msg.payload[1]==0x1f){\n    if(msg.payload[2]==0x0) {\n        yaw = {payload: msg.payload[4]}\n    }\n\n}\nelse if (msg.payload[1] == 0x21) {\n    rssi = { payload: msg.payload[2] }\n}\n\n//console.log([rssi,yaw])\nreturn [rssi,yaw]",
-        "outputs": 2,
+        "func": "var rssi = null\nvar yaw  = null\nvar ult_dist = null\nvar bat      = null\nvar id       = null\n\nid = {payload:msg.payload[0]}\n\nif(msg.payload[1]==0x1f){\n    if(msg.payload[2]==0x0) {\n        yaw = {payload: (((msg.payload[3]<<8)|msg.payload[4])/32767.0)*180.0}\n    }\n    if (msg.payload[2] == 0x2) {\n        ult_dist = { payload: (((msg.payload[3] << 8) | msg.payload[4]) / 32767.0) * 300.0 }\n    }\n    if (msg.payload[2] == 0x5) {\n        bat = { payload: (msg.payload[3])}\n    }\n\n}\nelse if (msg.payload[1] == 0x21) {\n    rssi = { payload: msg.payload[2] & 0x80 ? -((msg.payload[2]^0xff) +1) : msg.payload[2] }\n}\n\nconsole.log([rssi,yaw,ult_dist,bat])\nreturn [rssi,yaw,ult_dist,bat,id]",
+        "outputs": 5,
         "timeout": 0,
         "noerr": 0,
         "initialize": "",
@@ -48,6 +48,15 @@
             ],
             [
                 "b8efb7b268686d09"
+            ],
+            [
+                "ffe0f4262c583d81"
+            ],
+            [
+                "f158ef0ab9aee9b4"
+            ],
+            [
+                "5b8c8ecd75b71f02"
             ]
         ]
     },
@@ -60,7 +69,7 @@
         "order": 0,
         "width": "0",
         "height": "0",
-        "label": "chart_rssi",
+        "label": "RSSI",
         "chartType": "line",
         "legend": "false",
         "xformat": "HH:mm:ss",
@@ -83,7 +92,7 @@
             "#98df8a",
             "#d62728",
             "#ff9896",
-            "#9467bd",
+            "#38ffbd",
             "#c5b0d5"
         ],
         "outputs": 1,
@@ -107,17 +116,17 @@
         "order": 0,
         "width": "0",
         "height": "0",
-        "label": "chart_yaw",
+        "label": "Yaw",
         "chartType": "line",
         "legend": "false",
         "xformat": "HH:mm:ss",
         "interpolate": "bezier",
         "nodata": "",
         "dot": false,
-        "ymin": "-300",
-        "ymax": "300",
+        "ymin": "-180",
+        "ymax": "180",
         "removeOlder": 1,
-        "removeOlderPoints": "40",
+        "removeOlderPoints": "80",
         "removeOlderUnit": "60",
         "cutout": 0,
         "useOneColor": false,
@@ -144,6 +153,121 @@
         "inputLabels": [
             "RSSI"
         ]
+    },
+    {
+        "id": "ffe0f4262c583d81",
+        "type": "ui_chart",
+        "z": "7210a587486ae282",
+        "name": "ult",
+        "group": "1e182651f6e25525",
+        "order": 0,
+        "width": "0",
+        "height": "0",
+        "label": "Ultrasonic Distance",
+        "chartType": "line",
+        "legend": "false",
+        "xformat": "HH:mm:ss",
+        "interpolate": "bezier",
+        "nodata": "",
+        "dot": false,
+        "ymin": "-300",
+        "ymax": "300",
+        "removeOlder": 1,
+        "removeOlderPoints": "40",
+        "removeOlderUnit": "60",
+        "cutout": 0,
+        "useOneColor": false,
+        "useUTC": false,
+        "colors": [
+            "#bb3716",
+            "#aec7e8",
+            "#ff7700",
+            "#2ca02c",
+            "#98df8a",
+            "#d62728",
+            "#ff9896",
+            "#9467bd",
+            "#c5b0d5"
+        ],
+        "outputs": 1,
+        "useDifferentColor": false,
+        "className": "",
+        "x": 570,
+        "y": 220,
+        "wires": [
+            []
+        ],
+        "inputLabels": [
+            "Ult"
+        ]
+    },
+    {
+        "id": "f158ef0ab9aee9b4",
+        "type": "ui_chart",
+        "z": "7210a587486ae282",
+        "name": "bat",
+        "group": "1e182651f6e25525",
+        "order": 0,
+        "width": "0",
+        "height": "0",
+        "label": "Battery Percentage",
+        "chartType": "line",
+        "legend": "false",
+        "xformat": "HH:mm:ss",
+        "interpolate": "step",
+        "nodata": "",
+        "dot": false,
+        "ymin": "50",
+        "ymax": "100",
+        "removeOlder": 1,
+        "removeOlderPoints": "40",
+        "removeOlderUnit": "60",
+        "cutout": 0,
+        "useOneColor": false,
+        "useUTC": false,
+        "colors": [
+            "#ffb005",
+            "#aec7e8",
+            "#ff7f0e",
+            "#00ff00",
+            "#98df8a",
+            "#d62728",
+            "#ff3b38",
+            "#9467bd",
+            "#c5b0d5"
+        ],
+        "outputs": 1,
+        "useDifferentColor": false,
+        "className": "",
+        "x": 570,
+        "y": 280,
+        "wires": [
+            []
+        ],
+        "inputLabels": [
+            "Ult"
+        ]
+    },
+    {
+        "id": "5b8c8ecd75b71f02",
+        "type": "ui_text",
+        "z": "7210a587486ae282",
+        "group": "1e182651f6e25525",
+        "order": 4,
+        "width": 0,
+        "height": 0,
+        "name": "",
+        "label": "Client ID:",
+        "format": "{{msg.payload}}",
+        "layout": "row-left",
+        "className": "",
+        "style": false,
+        "font": "",
+        "fontSize": 16,
+        "color": "#000000",
+        "x": 580,
+        "y": 60,
+        "wires": []
     },
     {
         "id": "31bca82e753f9368",
