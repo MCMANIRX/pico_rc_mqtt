@@ -21,8 +21,8 @@
 #include "inc/esp_uart/esp_uart.h"
 
 #define IMU MPU
-#define ULT_CONNECT 
-#define ESP_CONNECT 
+//#define ULT_CONNECT 
+//#define ESP_CONNECT 
 #define BAT_CONNECT 
 
 
@@ -222,6 +222,8 @@ void move_motors(s8_t x, s8_t y)
    /* if(!imu_calibrated)
         return;*/
 
+    //printf("y x %d %d\t",y,x);
+
     // make steering a little bit better
     if(!script_active)
         x = clamp8(x*STEER_MULT,127);
@@ -303,12 +305,10 @@ void move_motors(s8_t x, s8_t y)
 
             }
         }
-
-        else if(abs(y)>DRIVE_THRESH && imu_calibrated && !prop_steer){
+    else if(abs(y)>DRIVE_THRESH && imu_calibrated && !prop_steer){
         prop_steer = true;
         ref_yaw = yaw;
     }
-
 
     else
     {
@@ -317,19 +317,18 @@ void move_motors(s8_t x, s8_t y)
     pwm_set_gpio_level(STEER_R, 0);
 
     }
-
-
 }
 
 
 void _hard_stop(int time) {
     gpio_put(ULT_LED_PIN,1);
+    pwm_set_gpio_level(DRIVE_B,0);
     pwm_set_gpio_level(DRIVE_F,0);
     pwm_set_gpio_level(DRIVE_B,65535);
     wait(300);
     pwm_set_gpio_level(DRIVE_B,0);
-
     wait(time);
+    pwm_set_gpio_level(DRIVE_B,0);
     gpio_put(ULT_LED_PIN,0);
 
 }
@@ -358,7 +357,7 @@ void hard_stop_routine(){
 int failsafe_cb() {
     printf("failsafe!");
 
-
+    if(script_active)return;
     _hard_stop(1000);
     move_motors(0,0);   
 
@@ -518,7 +517,6 @@ void message_decoder(char *topic, char *data)
           //  printf("%.2f\t",yaw);
          //   printf("%.2f\t%.2f\n",imu_offset,yaw);
         }
-
          else if (data[2] == IMU_REF_SET) {
             float nry = (float)data[3];
             blink(2,50);
@@ -528,6 +526,7 @@ void message_decoder(char *topic, char *data)
                     prop_steer = true;
                 printf("%.2f ref_yaw %d prop_steer %d imu_calib\n",ref_yaw,prop_steer, imu_calibrated);
         }        }
+        
 
     }
     else if(_this && data[1] == CAM_OP) {
@@ -546,7 +545,7 @@ void message_decoder(char *topic, char *data)
 
             }
         }
-        else if(_this && data[2] == CAM_STOP_SIGN && !stop_sign_timer_began && !saw_stop_sign) 
+        else if(data[2] == CAM_STOP_SIGN && !stop_sign_timer_began && !saw_stop_sign) 
             stop_sign = true;
         
 
@@ -567,7 +566,6 @@ void message_decoder(char *topic, char *data)
             imu_buf[0] = assign_data;
             ult_buf[0] = assign_data;
             bat_buf[0] = assign_data;
-            esp_buf[0] = assign_data;
 
             sprintf(id, "%d", assign_data);
             set_id_for_reconnect(id);
@@ -683,6 +681,7 @@ int main()
     drive_slice = pwm_gpio_to_slice_num(14);
     steer_slice = pwm_gpio_to_slice_num(12);
 
+
     pwm_set_enabled(drive_slice, true);
     pwm_set_enabled(steer_slice, true);
 
@@ -795,7 +794,7 @@ static void mqtt_loop()
         hard_stop_routine();
     
     if (timer_expired(&core_1_wd_timer)){
-            putchar(core_1_watchdog ? '.' : 'f');
+            putchar(core_1_watchdog ? 'c' : 'f');
             if (!core_1_watchdog)
             {
                 printf("reset core 1!\n");
@@ -905,8 +904,8 @@ static void hw_loop()
         putchar('\r');
     }
 
-    printf("assigned.\n Initializing...\n");
-    sleep_ms(100);
+    printf("assigned. Initializing...");
+    sleep_ms(500);
 
     if(!skip_imu){
     imu_buf[2] = IMU_INIT;
@@ -932,6 +931,7 @@ static void hw_loop()
             memcpy(&__ip, &watchdog_hw->scratch[0], 4);
             __ip = swap_endian(__ip);
             memcpy(&esp_buf[3], &__ip, 4);
+        // memcpy(&esp_buf[3], &watchdog_hw->scratch[0], 4);
         }
 
     #endif
@@ -1034,9 +1034,8 @@ static void hw_loop()
             //       gpio_put(ULT_LED_PIN,1);
                     ult_buf[5] = 1;
                     obj_flag = true;
-                if(ult_dist < 30 && ult_dist > 5)
-                    hard_stop_routine();
             }
+
             else {
             //  gpio_put(ULT_LED_PIN,0);
                 ult_buf[5] = 0;

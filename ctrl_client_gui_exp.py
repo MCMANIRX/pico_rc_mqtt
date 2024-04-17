@@ -84,6 +84,8 @@ class Client():
         
     def update_bat(self,val):
         label = QTableWidgetItem("Bat")
+        if val >100:
+            val = 100
         value = QTableWidgetItem(str(val)+"%")
             
         self.data.setItem(3, 0, label)

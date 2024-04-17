@@ -1,0 +1,12 @@
+sync {
+
+	car(0) {
+	move(f,60,r,100,2000)
+}
+
+	car(1) {
+	ymove(f,100,200)
+	ymove(f,40,4000)
+}
+}
+echo("script complete.")

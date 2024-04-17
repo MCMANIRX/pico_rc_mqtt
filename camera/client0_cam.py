@@ -6,7 +6,7 @@ import matplotlib.pyplot as mpl
 import sys
 import paho.mqtt.client as mqtt 
 import rc_config as rc
-#import ml_module
+import ml_module
 import requests
 
 
@@ -14,7 +14,7 @@ import requests
 broker = 'localhost'
 port = 1883
 SLICES = 13
-HARD_STOP_CM = 30
+HARD_STOP_CM = 20
 
 connect_mqtt = False
 
@@ -134,10 +134,10 @@ def on_message(client,userdata,msg):
             
             if(dist <= HARD_STOP_CM):
                 print(dist)
-                client.publish(rc.ACTION_TOPIC,rc.compileCommand(0,rc.CAM_OP,rc.CAM_HARD_STOP,3))
+                client.publish(rc.ACTION_TOPIC,rc.compileCommand(msg.payload[0],rc.CAM_OP,rc.CAM_HARD_STOP,3))
                 print("hard!")
             else:
-                client.publish(rc.ACTION_TOPIC,rc.compileCommand(0,rc.CAM_OP,((rc.CAM_EVADE&0xff) << 8) | rc.to_8_signed(target_slice),4))
+                client.publish(rc.ACTION_TOPIC,rc.compileCommand(msg.payload[0],rc.CAM_OP,((rc.CAM_EVADE&0xff) << 8) | rc.to_8_signed(target_slice),4))
                 print("evade!")
 
         else:
@@ -163,9 +163,9 @@ def set_resolution(url: str, index: int=1, verbose: bool=False):
         print("SET_RESOLUTION: something went wrong")
     
     
-URL = "http://192.168.1.139"
+URL = "http://192.168.1.138"
 AWB = True
-SVGA = 6
+SVGA = 8
 set_resolution(URL,SVGA,verbose=False) # set to SVGA (800x600) for best quality + latency
 
 #cap=cv2.VideoCapture(0)
@@ -184,9 +184,9 @@ not_stop_sign = False
 
 while(cap.isOpened()):
     ret, image = cap.read()
-    #image,stop_sign, = ml_module.look_at_frame(image)
-    #cv2.imshow("debug",image)
-    stop_sign = False
+    image,stop_sign, = ml_module.look_at_frame(image)
+    #cv2.imshow("debug",cv2.resize(image, (800,600)))
+    #stop_sign = False
 
     parse_image()
     if(stop_sign and not_stop_sign):
