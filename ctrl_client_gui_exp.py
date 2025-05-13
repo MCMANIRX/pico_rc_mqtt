@@ -122,7 +122,7 @@ class CtrlClientGUI(QMainWindow):
     ctrl_modes = ["Joystick","Trigger"]
     ctrl_mode_index = 0
 
-    v1_buttons = ["Start Camera Feed","Switch Control Mode","Re-home IMUs", "Run Script","Clear Log"] #Get RSSIs removed
+    v1_buttons = ["Switch Control Mode","Re-home IMUs", "Run Script","Clear Log"] #Get RSSIs removed
     v1_radios  = ["Auto-Reassign"]
     menu_options = ["New Script","Open Script","Save Script","Run Script"]
   
@@ -215,11 +215,12 @@ class CtrlClientGUI(QMainWindow):
     def button_handler(self):
         arg = self.sender().text()
 
-        if arg == self.v1_buttons[0]:
-            None
+        #if arg == self.v1_buttons[0]:
+        #    None
+        
             
         # change ctrl mode   
-        elif arg == self.v1_buttons[1]:
+        if arg == self.v1_buttons[1-1]:
             self.ctrl_mode_index = (self.ctrl_mode_index + 1) % len(self.ctrl_modes)
             self.ctrl_mode_indicator.setText("Control Mode: "+'<font color="yellow">'+self.ctrl_modes[self.ctrl_mode_index]+'</font>')
 
@@ -227,16 +228,16 @@ class CtrlClientGUI(QMainWindow):
             cc.set_ctrl_mode(self.ctrl_mode_index)
         
         # rehome 
-        elif arg == self.v1_buttons[2]:
+        elif arg == self.v1_buttons[2-1]:
             cc.rehome()
 
                             
         # run script
-        elif arg == self.v1_buttons[3]:
+        elif arg == self.v1_buttons[3-1]:
             self.run_script()
         
         # clear log
-        elif arg == self.v1_buttons[4]:
+        elif arg == self.v1_buttons[4-1]:
             self.log.setPlainText("")
             
         # rssi req    
