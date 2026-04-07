@@ -1,1 +1,0 @@
-add_subdirectory(BNO055_driver)
