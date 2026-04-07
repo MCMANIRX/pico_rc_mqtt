@@ -219,106 +219,15 @@ void wait(int time)
 
 void move_motors(s8_t x, s8_t y)
 {
-   /* if(!imu_calibrated)
-        return;*/
 
     // make steering a little bit better
-    if(!script_active)
-        x = clamp8(x*STEER_MULT,127);
-
-    if(saw_stop_sign && y < 0 && !stop_sign_timer_began){
-        start_timer(&stop_sign_timer,4000); 
-        stop_sign_timer_began = true;
-    }
-
-    last_x = x;
-    last_y = y;
-
-    #if IMU != MPU || IMU != BNO
-        hard_stopped = false;
-    #endif
-
-
-    //printf("y\t%d\thardstopped\t%s\n",abs(y),hard_stopped?"true":"false");
-
-
-    if (y < 0 && !hard_stopped)
-    {
-     //   pwm_set_gpio_level(DRIVE_F, abs(127 * SPEED_MULT)); 
+    x = clamp8(x*STEER_MULT,127);
 
      // 14 = DRIVE_B = INB1
      // 15 = DRIVE_F = INA1
 
      // 12 = STEER_L = INA2
      // 13 = STEER_R = INB2
-        gpio_put(ULT_LED_PIN,1);
-
-
-        pwm_set_gpio_level(DRIVE_F, abs(y * SPEED_MULT)); //may need to redo with smaller function??
-        pwm_set_gpio_level(DRIVE_B, 0);
-        printf("ddy\t%d\n",abs(y));
-
-    }
-    else if (y > 0)
-    {
-        gpio_put(ULT_LED_PIN,0);
-
-      //  pwm_set_gpio_level(DRIVE_B, abs(127 * SPEED_MULT)); 
-        pwm_set_gpio_level(DRIVE_B, abs(y * SPEED_MULT));
-        pwm_set_gpio_level(DRIVE_F, 0);
-             //   printf("y\t%d\n",abs(y));
-
-    }
-
-    else if (abs(y) < DRIVE_THRESH)
-    {
-        gpio_put(ULT_LED_PIN,0);
-
-        pwm_set_gpio_level(DRIVE_F, 0);
-        pwm_set_gpio_level(DRIVE_B, 0);
-        prop_steer = false;
-
-    }
-
-    if(y<0&&obj_flag)return; // camera steer
-
-
-    if (abs(x) > STEER_THRESH)
-
-        {
-            prop_steer = false;
-
-            if (x < 0)
-            {
-
-            pwm_set_gpio_level(STEER_L, abs(x * SPEED_MULT));
-            pwm_set_gpio_level(STEER_R, 0);
-            }
-
-            else if (x > 0)
-            {
-
-            pwm_set_gpio_level(STEER_L, 0);
-            pwm_set_gpio_level(STEER_R,  abs(x * SPEED_MULT));
-
-            }
-        }
-
-        else if(abs(y)>DRIVE_THRESH && imu_calibrated && !prop_steer){
-        prop_steer = true;
-        ref_yaw = yaw;
-    }
-
-
-    else
-    {
-
-    pwm_set_gpio_level(STEER_L, 0);
-    pwm_set_gpio_level(STEER_R, 0);
-
-    }
-
-
 }
 
 
